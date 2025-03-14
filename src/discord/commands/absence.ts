@@ -1,5 +1,6 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, TextChannel, MessageFlags } from 'discord.js';
 import { Command } from '../command.model';
+import { format } from 'date-fns';
 
 const data = new SlashCommandBuilder();
 
@@ -35,9 +36,13 @@ export const command: Command = {
 				const notifyRoleId: string = process.env.NOTIFY_ROLE_ID || '';
 				const roleTag = notifyRoleId ? `<@&${notifyRoleId}>` : '';
 
-				await absenceChannel.send(
-					`Oh non ! ${absentUser} ne sera pas parmis nous aujourd'hui 😭 \n> ${absenceMessage} \n${roleTag}`
+				const message = await absenceChannel.send(
+					`Oh non ! ${absentUser} ne sera pas parmis nous aujourd'hui 😭 ${roleTag} \n Voici son petit mot: \n> ${absenceMessage}`
 				);
+				const date = format(new Date(), 'dd/MM/yyyy');
+				await message.startThread({
+					name: `${date} - Absence de ${absentUser.username}`,
+				});
 
 				await interaction.reply({
 					content: "Merci! Votre message d'absence a été envoyé!",
