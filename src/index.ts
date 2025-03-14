@@ -1,53 +1,38 @@
-import { Client, Events, GatewayIntentBits, Collection, MessageFlags } from 'discord.js';
 import { config } from 'dotenv';
-import { command as absenceCommand } from './commands/absence';
-import { Command } from './command.model';
+import axios from 'axios';
+import Express, { Request, Response } from 'express';
+import discord from './discord';
 
 // Load environment variables
 config();
 
-// Create a new client instance
-const client = new Client({
-	intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
+// Temporary hack to avoid Render spin down with inactivity
+
+const app = Express();
+
+app.get('/ping', (_req: Request, res: Response) => {
+	res.send('pong');
 });
 
-// Create a collection for commands
-const commands = new Collection<string, Command>();
-commands.set(absenceCommand.data.name, absenceCommand);
-
-client.once(Events.ClientReady, (readyClient) => {
-	console.log(`Ready! Logged in as ${readyClient.user.tag}`);
+app.listen(process.env.PORT, () => {
+	console.info(`[server]: Server is running at ${process.env.SERVER_URL}:${process.env.PORT}`);
 });
 
-client.on(Events.InteractionCreate, async (interaction) => {
-	if (!interaction.isChatInputCommand()) return;
+const interval = 10 * 60 * 1000; // Interval in milliseconds (10 mins)
 
-	const command = commands.get(interaction.commandName);
+function reloadWebsite() {
+	axios
+		.get(`${process.env.SERVER_URL}/ping`)
+		.then((response) => {
+			console.info(`Reloaded at ${new Date().toISOString()}: Status Code ${response.status}`);
+		})
+		.catch((error) => {
+			console.error(`Error reloading at ${new Date().toISOString()}:`, error.message);
+		});
+}
 
-	if (!command) {
-		console.error(`No command matching ${interaction.commandName} was found.`);
-		return;
-	}
+if (process.env.ENV_NAME !== 'development') {
+	setInterval(reloadWebsite, interval);
+}
 
-	try {
-		await command.execute(interaction);
-	} catch (error) {
-		console.error(error);
-		const errorMessage =
-			"Une erreur est survenue lors de l'exécution de cette commande! Veuillez réessayer plus tard. Si le problème persiste, contactez Diane ou un administrateur.";
-		if (interaction.replied || interaction.deferred) {
-			await interaction.followUp({
-				content: errorMessage,
-				flags: MessageFlags.Ephemeral,
-			});
-		} else {
-			await interaction.reply({
-				content: errorMessage,
-				flags: MessageFlags.Ephemeral,
-			});
-		}
-	}
-});
-
-// Log in to Discord with your client's token
-client.login(process.env.DISCORD_TOKEN);
+discord();
