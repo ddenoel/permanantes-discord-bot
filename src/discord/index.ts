@@ -1,7 +1,8 @@
-import { Client, Events, GatewayIntentBits, Collection, MessageFlags } from 'discord.js';
+import { Client, Events, GatewayIntentBits, Collection, MessageFlags, Message } from 'discord.js';
 import { config } from 'dotenv';
 import { command as absenceCommand } from './commands/absence';
 import { Command } from './command.model';
+import { createThreadOnPost } from './automations';
 
 export default async function startDiscord() {
 	// Load environment variables
@@ -9,12 +10,15 @@ export default async function startDiscord() {
 
 	// Create a new client instance
 	const client = new Client({
-		intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages],
+		intents: [GatewayIntentBits.Guilds, GatewayIntentBits.GuildMessages, GatewayIntentBits.MessageContent],
 	});
 
 	// Create a collection for commands
 	const commands = new Collection<string, Command>();
 	commands.set(absenceCommand.data.name, absenceCommand);
+
+	// Set up automations
+	createThreadOnPost(client);
 
 	client.once(Events.ClientReady, (readyClient) => {
 		console.log(`Ready! Logged in as ${readyClient.user.tag}`);
