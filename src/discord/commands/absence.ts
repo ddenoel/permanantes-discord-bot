@@ -154,7 +154,7 @@ export const command: Command = {
 			const threadDate = format(dates[0], 'dd/MM/yyyy');
 			await message
 				.startThread({
-					name: `${threadDate} - Absence de ${absentUser.username}`,
+					name: `${threadDate} - Absence de ${absentUser?.displayName || absentUser?.username || ''}`,
 				})
 				.catch(async (error) => {
 					console.error('[Absence Command] Failed to create thread:', {
