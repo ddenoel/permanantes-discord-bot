@@ -169,7 +169,12 @@ export const command: Command = {
 			const futureDates = dates.filter((date) => !isSameDay(date, today));
 			if (futureDates.length > 0) {
 				for (const date of futureDates) {
-					scheduleAbsenceReminder(interaction.client, absentUser.id, absenceMessage, date, absenceChannelId);
+					scheduleAbsenceReminder(interaction.client, {
+						userId: absentUser.id,
+						message,
+						date,
+						channelId: absenceChannelId,
+					});
 				}
 			}
 

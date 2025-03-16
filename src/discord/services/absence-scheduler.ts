@@ -1,31 +1,20 @@
-import { Client, TextChannel } from 'discord.js';
+import { Client, Message, TextChannel } from 'discord.js';
 import * as schedule from 'node-schedule';
 import { startOfDay, format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 interface AbsenceReminder {
 	userId: string;
-	message: string;
 	date: Date;
 	channelId: string;
+	message: Message;
 }
 
 const scheduledReminders = new Map<string, AbsenceReminder>();
 
-export function scheduleAbsenceReminder(
-	client: Client,
-	userId: string,
-	message: string,
-	date: Date,
-	channelId: string
-): void {
+export function scheduleAbsenceReminder(client: Client, reminder: AbsenceReminder): void {
+	const { userId, date, channelId, message } = reminder;
 	const reminderKey = `${userId}-${date.getTime()}`;
-	const reminder: AbsenceReminder = {
-		userId,
-		message,
-		date,
-		channelId,
-	};
 
 	// Schedule for 16:00 (4:00 PM) on the given date
 	const scheduledDate = startOfDay(date);
@@ -43,9 +32,7 @@ export function scheduleAbsenceReminder(
 			const roleTag = notifyRoleId ? `<@&${notifyRoleId}>` : '';
 			const formattedDate = format(date, 'dd MMMM yyyy', { locale: fr });
 
-			await channel.send(
-				`Rappel ${roleTag}\n<@${userId}> est absent aujourd'hui (${formattedDate}) 😢\nSon message : \n> ${message}`
-			);
+			await channel.send(`**Rappel** \n<@${userId}> n'est pas parmis nous aujourd'hui ! 😢 ${roleTag}\n${message}`);
 
 			// Remove the reminder from the map after it's sent
 			scheduledReminders.delete(reminderKey);
