@@ -155,6 +155,7 @@ export const command: Command = {
 			await message
 				.startThread({
 					name: `${threadDate} - Absence de ${absentUser?.displayName || absentUser?.username || ''}`,
+					autoArchiveDuration: 60 * 60 * 24 * 7, // 7 days
 				})
 				.catch(async (error) => {
 					console.error('[Absence Command] Failed to create thread:', {
