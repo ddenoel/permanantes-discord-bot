@@ -1,4 +1,10 @@
-import { SlashCommandBuilder, ChatInputCommandInteraction, TextChannel, MessageFlags } from 'discord.js';
+import {
+	SlashCommandBuilder,
+	ChatInputCommandInteraction,
+	TextChannel,
+	MessageFlags,
+	PermissionFlagsBits,
+} from 'discord.js';
 import { Command } from '../command.model';
 import { format, isBefore, startOfDay, isValid, parse } from 'date-fns';
 import { fr } from 'date-fns/locale';
@@ -13,14 +19,18 @@ data
 	.addStringOption((option) =>
 		option
 			.setName('dates')
-			.setDescription("Date(s) d'absence (format: JJ/MM/YYYY, séparer plusieurs dates par des virgules)")
+			.setDescription("Date(s) d'absence (format: JJ/MM/AAAA, séparer plusieurs dates par des virgules)")
 			.setRequired(false)
 	);
+
+if (process.env.ENV_NAME === 'development') {
+	data.setDefaultMemberPermissions(PermissionFlagsBits.Administrator);
+}
 
 const USER_ERROR_MESSAGE =
 	"Désolé, je n'ai pas pu traiter votre demande. Veuillez réessayer ou contacter un administrateur si le problème persiste.";
 const INVALID_DATE_FORMAT =
-	"Le format des dates n'est pas valide. Utilisez le format JJ/MM/YYYY et séparez les dates par des virgules.";
+	"Le format des dates n'est pas valide. Utilisez le format JJ/MM/AAAA et séparez les dates par des virgules.";
 const PAST_DATE_ERROR = "Les dates d'absence doivent être aujourd'hui ou dans le futur.";
 
 function validateAndParseDates(datesStr: string | null): Date[] {
@@ -140,7 +150,6 @@ export const command: Command = {
 						error,
 						channelId: absenceChannelId,
 						userId: absentUser.id,
-						messageLength: absenceMessage.length,
 					});
 					await interaction.reply({
 						content: USER_ERROR_MESSAGE,
@@ -152,10 +161,11 @@ export const command: Command = {
 			if (!message) return;
 
 			const threadDate = format(dates[0], 'dd/MM/yyyy');
+
 			await message
 				.startThread({
 					name: `${threadDate} - Absence de ${absentUser?.displayName || absentUser?.username || ''}`,
-					autoArchiveDuration: 60 * 60 * 24 * 7, // 7 days
+					autoArchiveDuration: 4320, // 3 days
 				})
 				.catch(async (error) => {
 					console.error('[Absence Command] Failed to create thread:', {

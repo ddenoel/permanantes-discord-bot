@@ -16,26 +16,26 @@
 	"author": "",
 	"license": "ISC",
 	"dependencies": {
-		"@types/node-schedule": "^2.1.7",
-		"axios": "^1.8.3",
+		"@types/node-schedule": "^2.1.8",
+		"axios": "^1.10.0",
 		"date-fns": "^4.1.0",
-		"discord.js": "^14.18.0",
-		"dotenv": "^16.4.7",
+		"discord.js": "^14.21.0",
+		"dotenv": "^16.6.1",
 		"express": "^4.21.2",
 		"node-schedule": "^2.1.1"
 	},
 	"devDependencies": {
 		"@types/date-fns": "^2.6.3",
-		"@types/express": "^5.0.0",
-		"@types/node": "^22.13.10",
-		"@typescript-eslint/eslint-plugin": "^8.26.1",
-		"@typescript-eslint/parser": "^8.26.1",
-		"eslint": "^9.22.0",
-		"eslint-config-prettier": "^10.1.1",
-		"eslint-plugin-prettier": "^5.2.3",
-		"prettier": "^3.5.3",
+		"@types/express": "^5.0.3",
+		"@types/node": "^22.16.4",
+		"@typescript-eslint/eslint-plugin": "^8.37.0",
+		"@typescript-eslint/parser": "^8.37.0",
+		"eslint": "^9.31.0",
+		"eslint-config-prettier": "^10.1.5",
+		"eslint-plugin-prettier": "^5.5.1",
+		"prettier": "^3.6.2",
 		"ts-node": "^10.9.2",
 		"ts-node-dev": "^2.0.0",
-		"typescript": "^5.8.2"
+		"typescript": "^5.8.3"
 	}
 }
