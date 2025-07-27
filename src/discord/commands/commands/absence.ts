@@ -102,7 +102,10 @@ export const command: Command = {
 					const absence = await app.createAbsence.execute({
 						discord: {
 							guildId: interaction.guildId,
-							member: { id: absentUser.id, displayName: absentUser.displayName },
+							member: {
+								id: absentUser.id,
+								displayName: absentUser.displayName || absentUser.globalName || absentUser.username,
+							},
 						},
 						absenceDate: date,
 						message: absenceMessage,
