@@ -29,3 +29,7 @@ build/
 logs/
 *.log
 npm-debug.log*
+
+
+# Firebase
+*-firebase-*.json

@@ -1,0 +1,76 @@
+import { Client } from 'discord.js';
+import { initializeFirebase } from '../infrastructure/firestore/firebase';
+
+import { FirestoreAbsenceRepository } from '../infrastructure/firestore/firestore-absence.repository';
+import { AbsenceRepository } from './domain/repositories/absence.repostiory';
+import { CreateAbsence, CreateAbsencePayload } from './use-cases/create-absence';
+import { InMemoryAbsenceRepository } from '../infrastructure/in-memory/in-memory-absence.repository';
+import { Absence } from './domain/entities/absence.entity';
+import { WarnAbsence } from './use-cases/warn-absence';
+import cron from 'node-cron';
+import { RetrieveAbsencesOfTheDay } from './use-cases/retrieve-absences-of-the-day';
+import { RemindAbsences } from './use-cases/remind-absences';
+import { DiscordService } from './domain/services/discord.service';
+
+let firebaseError = false;
+try {
+	initializeFirebase();
+} catch (e) {
+	console.error('Failed to initialize Firebase:', e);
+	firebaseError = true;
+}
+
+export class App {
+	private absenceRepo: AbsenceRepository = firebaseError
+		? new InMemoryAbsenceRepository()
+		: new FirestoreAbsenceRepository();
+	private absenceRepoFallback: AbsenceRepository = new InMemoryAbsenceRepository();
+
+	createAbsence: CreateAbsence;
+	warnAbsence: WarnAbsence;
+	private remindAbsences: RemindAbsences;
+	private discordService: DiscordService;
+
+	constructor(private discord: Client) {
+		this.discordService = new DiscordService(this.discord);
+		this.warnAbsence = new WarnAbsence(this.discordService);
+		this.remindAbsences = new RemindAbsences(this.discordService);
+		this.createAbsence = {
+			execute: async (input: CreateAbsencePayload) => {
+				const createAbsence = new CreateAbsence(this.absenceRepo, this.discordService);
+
+				let absence: Absence;
+				try {
+					absence = await createAbsence.execute(input);
+				} catch (e) {
+					console.error(`Error while create absence in Firestore, falling back to in memory: ${e}`);
+					const inMemoryCreateAbsence = new CreateAbsence(this.absenceRepoFallback, this.discordService);
+					absence = await inMemoryCreateAbsence.execute(input);
+				}
+
+				return absence;
+			},
+		} as CreateAbsence;
+	}
+
+	scheduleTasks() {
+		const retrieveAbsencesOfTheDay = new RetrieveAbsencesOfTheDay(this.absenceRepo, this.discordService);
+		const retrieveAbsenceOfTheDayFallback = new RetrieveAbsencesOfTheDay(this.absenceRepoFallback, this.discordService);
+		// Schedule at 17:30 everyday
+		cron.schedule('30 17 * * *', async () => {
+			console.info('Checking absences of the day');
+			let absences: Absence[] = [];
+			try {
+				absences.push(...(await retrieveAbsencesOfTheDay.execute()));
+			} catch (e) {
+				console.error(`Error while reminding absences: ${e}`);
+			}
+
+			absences.push(...(await retrieveAbsenceOfTheDayFallback.execute()));
+
+			console.log(`${absences.length} absences found`);
+
+			await this.remindAbsences.execute(absences);
+		});
+	}
+}

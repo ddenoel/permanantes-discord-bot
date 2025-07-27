@@ -2,19 +2,20 @@ import { config } from 'dotenv';
 import axios from 'axios';
 import Express, { Request, Response } from 'express';
 import discord from './discord';
+import { App } from './app';
 
 // Load environment variables
 config();
 
 // Temporary hack to avoid Render spin down with inactivity
 
-const app = Express();
+const express = Express();
 
-app.get('/ping', (_req: Request, res: Response) => {
+express.get('/ping', (_req: Request, res: Response) => {
 	res.send('pong');
 });
 
-app.listen(process.env.PORT, () => {
+express.listen(process.env.PORT, () => {
 	console.info(`[server]: Server is running at ${process.env.SERVER_URL}:${process.env.PORT}`);
 });
 
@@ -35,4 +36,11 @@ if (process.env.ENV_NAME !== 'development') {
 	setInterval(reloadWebsite, interval);
 }
 
-discord();
+async function start() {
+	const discordClient = await discord();
+	const app = new App(discordClient);
+
+	app.scheduleTasks();
+}
+
+start();

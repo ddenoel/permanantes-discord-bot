@@ -1,7 +1,7 @@
-import { Client, Events, GatewayIntentBits, Collection, MessageFlags, Message } from 'discord.js';
+import { Client, Events, GatewayIntentBits, Collection, MessageFlags } from 'discord.js';
 import { config } from 'dotenv';
-import { command as absenceCommand } from './commands/absence';
-import { Command } from './command.model';
+import { command as absenceCommand } from './commands/commands/absence';
+import { Command } from './commands/command.model';
 import { createThreadOnPost } from './automations';
 
 export default async function startDiscord() {
@@ -56,4 +56,6 @@ export default async function startDiscord() {
 
 	// Log in to Discord with your client's token
 	client.login(process.env.DISCORD_TOKEN);
+
+	return client;
 }
