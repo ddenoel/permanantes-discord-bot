@@ -11,7 +11,7 @@ config();
 
 const express = Express();
 
-express.get('/ping', (_req: Request, res: Response) => {
+express.head('/ping', (_req: Request, res: Response) => {
 	res.send('pong');
 });
 
@@ -23,7 +23,7 @@ const interval = 10 * 60 * 1000; // Interval in milliseconds (10 mins)
 
 function reloadWebsite() {
 	axios
-		.get(`${process.env.SERVER_URL}/ping`)
+		.head(`${process.env.SERVER_URL}/ping`)
 		.then((response) => {
 			console.info(`Reloaded at ${new Date().toISOString()}: Status Code ${response.status}`);
 		})
