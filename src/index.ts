@@ -7,12 +7,14 @@ import { App } from './app';
 // Load environment variables
 config();
 
-// Temporary hack to avoid Render spin down with inactivity
-
 const express = Express();
 
 express.get('/ping', (_req: Request, res: Response) => {
 	res.send('pong');
+});
+
+express.get('/ping-extended', (_req: Request, res: Response) => {
+	res.send({ data: 'pong', status: 'alive', date: new Date().toISOString() });
 });
 
 express.head('/ping', (_req: Request, res: Response) => {
@@ -22,26 +24,6 @@ express.head('/ping', (_req: Request, res: Response) => {
 express.listen(process.env.PORT, () => {
 	console.info(`[server]: Server is running at ${process.env.SERVER_URL}:${process.env.PORT}`);
 });
-
-const interval = 10 * 60 * 1000; // Interval in milliseconds (10 mins)
-
-function reloadWebsite() {
-	axios
-		.get(`${process.env.SERVER_URL}/ping`)
-		.then((response) => {
-			console.info(`Reloaded at ${new Date().toISOString()}: ${response.data} Status Code ${response.status}`);
-		})
-		.catch((error) => {
-			console.error(`Error reloading at ${new Date().toISOString()}:`, error.message);
-		});
-}
-
-if (process.env.ENV_NAME !== 'development') {
-	console.info(
-		`⏰ Scheduling reload task by calling ${process.env.SERVER_URL}/ping every ${interval / 1000 / 60} minutes`
-	);
-	setInterval(reloadWebsite, interval);
-}
 
 async function start() {
 	const discordClient = await discord();
