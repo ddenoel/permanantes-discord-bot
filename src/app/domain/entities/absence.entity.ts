@@ -3,6 +3,7 @@ export interface IDiscordInfo {
 	member: {
 		id: string;
 		displayName?: string;
+		username?: string;
 	};
 }
 

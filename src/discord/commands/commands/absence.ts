@@ -85,6 +85,7 @@ export const command: Command = {
 			const absenceMessage = interaction.options.getString('message', true);
 			const datesStr = interaction.options.getString('dates');
 			const absentUser = interaction.user;
+			const member = interaction.guild.members.cache.get(absentUser.id);
 
 			let dates: Date[];
 			try {
@@ -104,7 +105,13 @@ export const command: Command = {
 							guildId: interaction.guildId,
 							member: {
 								id: absentUser.id,
-								displayName: absentUser.displayName || absentUser.globalName || absentUser.username,
+								displayName:
+									member.displayName ||
+									member.nickname ||
+									absentUser.displayName ||
+									absentUser.globalName ||
+									absentUser.username,
+								username: absentUser.username,
 							},
 						},
 						absenceDate: date,
