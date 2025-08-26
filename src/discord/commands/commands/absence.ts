@@ -37,11 +37,7 @@ function validateAndParseDates(datesStr: string | null): Date[] {
 	const today = startOfDay(new Date());
 
 	for (const dateStr of dates) {
-		const parsed = parse(dateStr, 'dd/MM/yyyy', new Date());
-
-		if (!isValid(parsed)) {
-			throw new Error(INVALID_DATE_FORMAT);
-		}
+		const parsed = validateAndParseDate(dateStr);
 
 		if (isBefore(parsed, today)) {
 			throw new Error(PAST_DATE_ERROR);
@@ -51,6 +47,16 @@ function validateAndParseDates(datesStr: string | null): Date[] {
 	}
 
 	return parsedDates;
+}
+
+export function validateAndParseDate(dateStr: string | null): Date {
+	const parsed = parse(dateStr, 'dd/MM/yyyy', new Date());
+
+	if (!isValid(parsed)) {
+		throw new Error(INVALID_DATE_FORMAT);
+	}
+
+	return parsed;
 }
 
 // Helper function to safely reply to an interaction

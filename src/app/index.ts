@@ -30,11 +30,14 @@ export class App {
 	warnAbsence: WarnAbsence;
 	private remindAbsences: RemindAbsences;
 	private discordService: DiscordService;
+	readonly retrieveAbsencesOfTheDay: RetrieveAbsencesOfTheDay;
 
 	constructor(private discord: Client) {
 		this.discordService = new DiscordService(this.discord);
 		this.warnAbsence = new WarnAbsence(this.discordService);
 		this.remindAbsences = new RemindAbsences(this.discordService);
+
+		this.retrieveAbsencesOfTheDay = new RetrieveAbsencesOfTheDay(this.absenceRepo, this.discordService);
 		this.createAbsence = {
 			execute: async (input: CreateAbsencePayload) => {
 				const createAbsence = new CreateAbsence(this.absenceRepo, this.discordService);
@@ -54,14 +57,13 @@ export class App {
 	}
 
 	scheduleTasks() {
-		const retrieveAbsencesOfTheDay = new RetrieveAbsencesOfTheDay(this.absenceRepo, this.discordService);
 		const retrieveAbsenceOfTheDayFallback = new RetrieveAbsencesOfTheDay(this.absenceRepoFallback, this.discordService);
 		// Schedule at 17:30 everyday
 		cron.schedule('30 17 * * *', async () => {
 			console.info('Checking absences of the day');
 			let absences: Absence[] = [];
 			try {
-				absences.push(...(await retrieveAbsencesOfTheDay.execute()));
+				absences.push(...(await this.retrieveAbsencesOfTheDay.execute()));
 			} catch (e) {
 				console.error(`Error while reminding absences: ${e}`);
 			}
