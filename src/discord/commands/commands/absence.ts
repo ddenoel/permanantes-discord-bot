@@ -59,33 +59,11 @@ export function validateAndParseDate(dateStr: string | null): Date {
 	return parsed;
 }
 
-// Helper function to safely reply to an interaction
-async function safeReply(interaction: ChatInputCommandInteraction, content: string, ephemeral = true) {
-	if (!interaction.isRepliable()) return false;
-
-	try {
-		if (interaction.replied || interaction.deferred) {
-			await interaction.followUp({
-				content,
-				flags: ephemeral ? MessageFlags.Ephemeral : undefined,
-			});
-		} else {
-			await interaction.reply({
-				content,
-				flags: ephemeral ? MessageFlags.Ephemeral : undefined,
-			});
-		}
-		return true;
-	} catch (error) {
-		console.error('[Absence Command] Failed to send reply:', error);
-		return false;
-	}
-}
-
 export const command: Command = {
 	data,
 	async execute(interaction: ChatInputCommandInteraction) {
 		if (!interaction.isCommand()) return;
+		await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
 		try {
 			const absenceMessage = interaction.options.getString('message', true);
@@ -97,7 +75,7 @@ export const command: Command = {
 			try {
 				dates = validateAndParseDates(datesStr);
 			} catch (error) {
-				await safeReply(interaction, error instanceof Error ? error.message : USER_ERROR_MESSAGE);
+				await interaction.followUp(error instanceof Error ? error.message : USER_ERROR_MESSAGE);
 				return;
 			}
 
@@ -128,17 +106,17 @@ export const command: Command = {
 					}
 				} catch (error) {
 					console.error('[Absence Command] Error creating absence in database:', error);
-					await safeReply(interaction, USER_ERROR_MESSAGE);
+					await interaction.followUp({ content: USER_ERROR_MESSAGE });
 					return;
 				}
 			}
 
 			try {
 				await app.warnAbsence.execute(absences);
-				await safeReply(interaction, "Merci ! Votre message d'absence a été envoyé !");
+				await interaction.followUp("Merci ! Votre message d'absence a été envoyé !");
 			} catch (error) {
 				console.error('[Absence Command] Error warning absence:', error);
-				await safeReply(interaction, USER_ERROR_MESSAGE);
+				await interaction.followUp({ content: USER_ERROR_MESSAGE });
 			}
 		} catch (error) {
 			console.error('[Absence Command] Unexpected error:', {
@@ -147,7 +125,7 @@ export const command: Command = {
 				channelId: interaction.channelId,
 				guildId: interaction.guildId,
 			});
-			await safeReply(interaction, USER_ERROR_MESSAGE);
+			await interaction.followUp({ content: USER_ERROR_MESSAGE });
 		}
 	},
 };

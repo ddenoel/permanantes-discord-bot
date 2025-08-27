@@ -3,12 +3,13 @@ import { Command } from '../command.model';
 import { App } from '../../../app';
 import { Absence } from '../../../app/domain/entities/absence.entity';
 import { validateAndParseDate } from './absence';
+import { format, isToday } from 'date-fns';
 
 const data = new SlashCommandBuilder();
 
 data
 	.setName('voir_absences')
-	.setDescription("Voir les absences d'un jour donné")
+	.setDescription("Voir les absences d'un jour donné (pas de date = aujourd'hui)")
 	.addStringOption((option) => option.setName('date').setDescription('Date (format: JJ/MM/AAAA)').setRequired(false));
 
 if (process.env.ENV_NAME === 'development') {
@@ -17,29 +18,6 @@ if (process.env.ENV_NAME === 'development') {
 
 const USER_ERROR_MESSAGE =
 	"Désolé, je n'ai pas pu traiter votre demande. Veuillez réessayer ou contacter un administrateur si le problème persiste.";
-
-// Helper function to safely reply to an interaction
-async function safeReply(interaction: ChatInputCommandInteraction, content: string, ephemeral = true) {
-	if (!interaction.isRepliable()) return false;
-
-	try {
-		if (interaction.replied || interaction.deferred) {
-			await interaction.followUp({
-				content,
-				flags: ephemeral ? MessageFlags.Ephemeral : undefined,
-			});
-		} else {
-			await interaction.reply({
-				content,
-				flags: ephemeral ? MessageFlags.Ephemeral : undefined,
-			});
-		}
-		return true;
-	} catch (error) {
-		console.error('[Absence Command] Failed to send reply:', error);
-		return false;
-	}
-}
 
 export const command: Command = {
 	data,
@@ -56,7 +34,10 @@ export const command: Command = {
 				try {
 					date = validateAndParseDate(dateStr);
 				} catch (error) {
-					await safeReply(interaction, error instanceof Error ? error.message : USER_ERROR_MESSAGE);
+					await interaction.reply({
+						content: error instanceof Error ? error.message : USER_ERROR_MESSAGE,
+						flags: MessageFlags.Ephemeral,
+					});
 					return;
 				}
 			}
@@ -67,28 +48,41 @@ export const command: Command = {
 				absences = await app.retrieveAbsencesOfTheDay.execute(date);
 			} catch (error) {
 				console.error('[Voir Absences Command] Error retrieving absences:', error);
-				await safeReply(interaction, USER_ERROR_MESSAGE);
+				await interaction.reply({
+					content: USER_ERROR_MESSAGE,
+					flags: MessageFlags.Ephemeral,
+				});
 				return;
 			}
 
 			try {
 				const MAX_NUMBER_OF_CHARS_MESSAGE = 60;
 				const nb = absences.length;
+				const formattedDate = isToday(date) ? "aujourd'hui" : `le **${format(date, 'dd/MM/yyyy')}**`;
 				if (nb === 0) {
-					await safeReply(interaction, '🎉 Aucune absence pour le jour **' + dateStr + '**');
+					await interaction.reply({
+						content: '🎉 Aucune absence pour ' + formattedDate,
+						flags: MessageFlags.Ephemeral,
+					});
 					return;
 				}
 				const message =
-					`**${nb} absence${nb > 1 ? 's' : ''}** le **${dateStr}**: \n` +
+					`**${nb} absence${nb > 1 ? 's' : ''}** ${formattedDate}: \n` +
 					absences
 						.map((absence) => {
-							return `- **<@${absence.discord.member.id}>** (${absence.message.replace('\n', ',').slice(0, MAX_NUMBER_OF_CHARS_MESSAGE) + (absence.message.length > MAX_NUMBER_OF_CHARS_MESSAGE ? '...' : '')})`;
+							return `- **<@${absence.discord.member.id}>** (${absence.message.replaceAll('\n', ',').slice(0, MAX_NUMBER_OF_CHARS_MESSAGE) + (absence.message.length > MAX_NUMBER_OF_CHARS_MESSAGE ? '...' : '')})`;
 						})
 						.join('\n');
-				await safeReply(interaction, message);
+				await interaction.reply({
+					content: message,
+					flags: MessageFlags.Ephemeral,
+				});
 			} catch (error) {
 				console.error('[Voir Absences Command] Error warning absence:', error);
-				await safeReply(interaction, USER_ERROR_MESSAGE);
+				await interaction.reply({
+					content: USER_ERROR_MESSAGE,
+					flags: MessageFlags.Ephemeral,
+				});
 			}
 		} catch (error) {
 			console.error('[Absence Command] Unexpected error:', {
@@ -97,7 +91,10 @@ export const command: Command = {
 				channelId: interaction.channelId,
 				guildId: interaction.guildId,
 			});
-			await safeReply(interaction, USER_ERROR_MESSAGE);
+			await interaction.reply({
+				content: USER_ERROR_MESSAGE,
+				flags: MessageFlags.Ephemeral,
+			});
 		}
 	},
 };

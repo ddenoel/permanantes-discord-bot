@@ -116,7 +116,7 @@ export class GoogleService {
 		if (!rows || rows.length === 0) return null;
 
 		const row = rows[0];
-		console.log(row);
+
 		for (let i = 0; i < row.length; i++) {
 			if (row[i] === value) {
 				return String.fromCharCode(65 + i); // A, B, C, etc.
