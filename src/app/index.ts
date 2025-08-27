@@ -11,6 +11,8 @@ import cron from 'node-cron';
 import { RetrieveAbsencesOfTheDay } from './use-cases/retrieve-absences-of-the-day';
 import { RemindAbsences } from './use-cases/remind-absences';
 import { DiscordService } from './domain/services/discord.service';
+import { GoogleService } from '../infrastructure/google/google';
+import { GoogleSheetAbsenceRepository } from '../infrastructure/google/sheet-absence.repository';
 
 let firebaseError = false;
 try {
@@ -27,10 +29,12 @@ export class App {
 	private absenceRepoFallback: AbsenceRepository = new InMemoryAbsenceRepository();
 
 	createAbsence: CreateAbsence;
+	private createAbsenceInGoogle: CreateAbsence;
 	warnAbsence: WarnAbsence;
 	private remindAbsences: RemindAbsences;
 	private discordService: DiscordService;
 	readonly retrieveAbsencesOfTheDay: RetrieveAbsencesOfTheDay;
+	private googleService: GoogleService = new GoogleService();
 
 	constructor(private discord: Client) {
 		this.discordService = new DiscordService(this.discord);
@@ -38,9 +42,14 @@ export class App {
 		this.remindAbsences = new RemindAbsences(this.discordService);
 
 		this.retrieveAbsencesOfTheDay = new RetrieveAbsencesOfTheDay(this.absenceRepo, this.discordService);
+		this.createAbsenceInGoogle = new CreateAbsence(
+			new GoogleSheetAbsenceRepository(this.googleService),
+			this.discordService
+		);
 		this.createAbsence = {
 			execute: async (input: CreateAbsencePayload) => {
 				const createAbsence = new CreateAbsence(this.absenceRepo, this.discordService);
+				this.createAbsenceInGoogle.execute(input);
 
 				let absence: Absence;
 				try {

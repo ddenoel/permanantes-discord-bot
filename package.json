@@ -25,6 +25,7 @@
 		"express": "^4.21.2",
 		"firebase-admin": "^13.4.0",
 		"fireorm": "^0.23.3",
+		"googleapis": "^158.0.0",
 		"node-cron": "^4.2.1",
 		"node-schedule": "^2.1.1",
 		"reflect-metadata": "^0.2.2"
