@@ -18,4 +18,26 @@ export class DateUtils {
 		const formattedDates = dates.map((d) => format(d, 'dd MMMM yyyy', { locale: fr }));
 		return `les ${formattedDates.slice(0, -1).join(', ')} et ${formattedDates.slice(-1)}`;
 	}
+
+	static getMonthNumberFromFrenchName(month: string): number {
+		if (!month) {
+			return null;
+		}
+		const months = {
+			janvier: 1,
+			fevrier: 2,
+			mars: 3,
+			avril: 4,
+			mai: 5,
+			juin: 6,
+			juillet: 7,
+			août: 8,
+			septembre: 9,
+			octobre: 10,
+			novembre: 11,
+			decembre: 12,
+		};
+
+		return months[month];
+	}
 }

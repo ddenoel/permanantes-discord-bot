@@ -1,39 +1,31 @@
-import { format } from 'date-fns';
+import { format, parse } from 'date-fns';
 import { Absence } from '../../app/domain/entities/absence.entity';
 import { AbsenceRepository } from '../../app/domain/repositories/absence.repostiory';
-import { GoogleService } from './google';
-import { fr } from 'date-fns/locale';
+import { Cell, GoogleService } from './google';
 import { config } from 'dotenv';
+import { PlanningSheet } from './planning-sheet';
 
 config();
 
 export class GoogleSheetAbsenceRepository implements AbsenceRepository {
 	private readonly fileId = process.env.GOOGLE_ABSENCES_FILE_ID;
-	private readonly sheetName = process.env.GOOGLE_ABSENCES_SHEET_NAME || 'Planning';
-	private readonly absencesLine = parseInt(process.env.GOOGLE_ABSENCES_ABSENTS_LINE, 10) || 6;
-	private readonly dateLine = parseInt(process.env.GOOGLE_ABSENCES_DATE_LINE, 10) || 2;
-	private DATE_LINE_FORMAT = 'dd/MM/yyyy';
 
-	constructor(private googleService: GoogleService) {}
+	constructor(
+		private googleService: GoogleService,
+		private planningSheet: PlanningSheet
+	) {}
 
 	async findByDateAndGuild(date: Date, guildId: string): Promise<Absence[]> {
-		if (!this.fileId) {
-			console.error('[GoogleSheetAbsenceRepository] GOOGLE_ABSENCES_FILE_ID is not defined');
+		const data = await this.planningSheet.readFile();
+		const compareFormat = 'dd-MM-yyyy';
+		const entry = data.find(({ entry }) => format(entry.date, compareFormat) === format(date, compareFormat));
+
+		if (!entry) {
 			return [];
 		}
 
-		const col = await this.findAbsenceCellForDate(date);
-		if (!col) {
-			return [];
-		}
+		const absents = entry.entry.absents;
 
-		const cell = { row: this.absencesLine, column: col };
-		const currValue = await this.googleService.getCellValue(this.fileId, this.sheetName, cell);
-		if (!currValue) {
-			return [];
-		}
-
-		const absents = currValue.split(', ');
 		return absents.map(
 			(absent) =>
 				new Absence({
@@ -46,45 +38,29 @@ export class GoogleSheetAbsenceRepository implements AbsenceRepository {
 	}
 
 	async save(absence: Absence): Promise<void> {
-		if (!this.fileId) {
-			console.error('[GoogleSheetAbsenceRepository] GOOGLE_ABSENCES_FILE_ID is not defined');
-			return;
-		}
-
-		const col = await this.findAbsenceCellForDate(absence.absenceDate);
-		if (!col) {
-			return;
-		}
-
-		const cell = { row: this.absencesLine, column: col };
-		const currValue = await this.googleService.getCellValue(this.fileId, this.sheetName, cell);
-		const values = new Set(currValue ? currValue.split(', ') : []);
-		const userName = absence.discord.member.displayName;
-		if (values.has(userName)) {
-			return;
-		}
-		values.add(userName);
-		const newValue = Array.from(values).join(', ');
-		await this.googleService.editCell(this.fileId, this.sheetName, cell, newValue);
-
-		return;
-	}
-
-	private async findAbsenceCellForDate(date: Date) {
-		const formattedDate = format(date, this.DATE_LINE_FORMAT, { locale: fr });
-		const col = await this.googleService.findColumnByRowValue(
-			this.fileId,
-			this.sheetName,
-			this.dateLine,
-			formattedDate
+		const compareFormat = 'dd-MM-yyyy';
+		const data = await this.planningSheet.readFile();
+		const entry = data.find(
+			({ entry }) => format(entry.date, compareFormat) === format(absence.absenceDate, compareFormat)
 		);
 
-		if (!col) {
-			console.warn(`[GoogleSheetAbsenceRepository] Date ${formattedDate} not found in sheet`);
-
-			return null;
+		if (!entry) {
+			return;
 		}
 
-		return col;
+		const absents = new Set(entry.entry.absents);
+		const userName = absence.discord.member.displayName;
+		if (absents.has(userName)) {
+			return;
+		}
+		absents.add(userName);
+
+		const cell: Cell = { row: this.planningSheet.getLineIndexFor('absents') + 1, column: entry.col };
+
+		const newValue = Array.from(absents).join(',');
+
+		await this.googleService.editCell(this.fileId, await this.planningSheet.getSheetName(), cell, newValue);
+
+		return;
 	}
 }

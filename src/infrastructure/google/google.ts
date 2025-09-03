@@ -10,7 +10,7 @@ type FindRowOptions = {
 	value: string;
 };
 
-type Cell = {
+export type Cell = {
 	row: number;
 	column: string;
 };
@@ -18,8 +18,16 @@ type Cell = {
 export class GoogleService {
 	private auth: Auth.GoogleAuth;
 	private sheets: ReturnType<typeof google.sheets>;
+	static UNFORMATTED_DATE_FORMAT = 'yyyy-MM-dd';
 
 	private isInit = false;
+
+	private formatSheetName(sheetName: string): string {
+		if (/[\s\-\(\)\[\]{}]/.test(sheetName)) {
+			return `'${sheetName}'`;
+		}
+		return sheetName;
+	}
 
 	async connect() {
 		if (this.isInit) {
@@ -72,7 +80,7 @@ export class GoogleService {
 			console.error('GoogleService is not initialized');
 			return null;
 		}
-		const range = `${sheetName}!${column}:${column}`;
+		const range = `${this.formatSheetName(sheetName)}!${column}:${column}`;
 
 		const res = await this.sheets.spreadsheets.values.get({
 			spreadsheetId,
@@ -86,7 +94,7 @@ export class GoogleService {
 			if (rows[i][0] === value) {
 				const rowData = await this.sheets.spreadsheets.values.get({
 					spreadsheetId,
-					range: `${sheetName}!${i + 1}:${i + 1}`,
+					range: `${this.formatSheetName(sheetName)}!${i + 1}:${i + 1}`,
 				});
 				return { rowNumber: i + 1, rowData: rowData.data.values[0] }; // lignes sont 1-based
 			}
@@ -95,21 +103,48 @@ export class GoogleService {
 		return null;
 	}
 
+	async readSheet(
+		spreadsheetId: string,
+		sheetName: string,
+		limitColumns: number = 1000,
+		limitRows: number = 1000
+	): Promise<string[][]> {
+		const range = `${this.formatSheetName(sheetName)}!A1:${GoogleService.parseIndexToColumn(limitColumns)}${limitRows}`;
+		const res = await this.sheets.spreadsheets.values.get({
+			spreadsheetId,
+			range,
+		});
+		return res.data.values;
+	}
+
+	static parseIndexToColumn(index: number): string {
+		let col = '';
+		while (index > 0) {
+			index--;
+			const remainder = index % 26;
+			col = String.fromCharCode(65 + remainder) + col;
+			index = Math.floor(index / 26);
+		}
+		return col;
+	}
+
 	async findColumnByRowValue(
 		spreadsheetId: string,
 		sheetName: string,
 		rowNumber: number,
-		value: string
+		value: string | number,
+		useUnformattedValues: boolean = false
 	): Promise<string | null> {
 		if (!this.isInit) {
 			console.error('GoogleService is not initialized');
 			return null;
 		}
 
-		const range = `${sheetName}!A${rowNumber}:ZZ${rowNumber}`;
+		const range = `${this.formatSheetName(sheetName)}!A${rowNumber}:ZZ${rowNumber}`;
 		const res = await this.sheets.spreadsheets.values.get({
 			spreadsheetId,
 			range,
+			valueRenderOption: useUnformattedValues ? 'UNFORMATTED_VALUE' : 'FORMATTED_VALUE',
 		});
 
 		const rows = res.data.values;
@@ -119,7 +154,7 @@ export class GoogleService {
 
 		for (let i = 0; i < row.length; i++) {
 			if (row[i] === value) {
-				return String.fromCharCode(65 + i); // A, B, C, etc.
+				return GoogleService.parseIndexToColumn(i); // A, B, C, etc.
 			}
 		}
 
@@ -138,7 +173,7 @@ export class GoogleService {
 		}
 		await this.sheets.spreadsheets.values.update({
 			spreadsheetId,
-			range: `${sheetName}!${rowNumber}:${rowNumber}`,
+			range: `${this.formatSheetName(sheetName)}!${rowNumber}:${rowNumber}`,
 			valueInputOption: 'USER_ENTERED',
 			requestBody: {
 				values: [values],
@@ -151,7 +186,7 @@ export class GoogleService {
 			console.error('GoogleService is not initialized');
 			return null;
 		}
-		const range = `${sheetName}!${cell.column}${cell.row}:${cell.column}${cell.row}`;
+		const range = `${this.formatSheetName(sheetName)}!${cell.column}${cell.row}:${cell.column}${cell.row}`;
 		const res = await this.sheets.spreadsheets.values.get({
 			spreadsheetId,
 			range,
@@ -166,7 +201,7 @@ export class GoogleService {
 			console.error('GoogleService is not initialized');
 			return;
 		}
-		const range = `${sheetName}!${cell.column}${cell.row}:${cell.column}${cell.row}`;
+		const range = `${this.formatSheetName(sheetName)}!${cell.column}${cell.row}:${cell.column}${cell.row}`;
 		await this.sheets.spreadsheets.values.update({
 			spreadsheetId,
 			range,
@@ -175,5 +210,32 @@ export class GoogleService {
 				values: [[value]],
 			},
 		});
+	}
+
+	/**
+	 * Récupère le nom de la feuille par son index (0 = première feuille)
+	 */
+	async getSheetNameByIndex(spreadsheetId: string, sheetIndex: number): Promise<string | null> {
+		if (!this.isInit) {
+			console.error('GoogleService is not initialized');
+			return null;
+		}
+
+		try {
+			const response = await this.sheets.spreadsheets.get({
+				spreadsheetId,
+			});
+
+			const sheets = response.data.sheets;
+			if (!sheets || sheetIndex >= sheets.length) {
+				console.error(`Sheet index ${sheetIndex} not found. Available sheets: ${sheets?.length || 0}`);
+				return null;
+			}
+
+			return sheets[sheetIndex].properties?.title || null;
+		} catch (error) {
+			console.error('Error getting sheet name by index:', error);
+			return null;
+		}
 	}
 }

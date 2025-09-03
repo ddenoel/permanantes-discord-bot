@@ -13,6 +13,7 @@ import { RemindAbsences } from './use-cases/remind-absences';
 import { DiscordService } from './domain/services/discord.service';
 import { GoogleService } from '../infrastructure/google/google';
 import { GoogleSheetAbsenceRepository } from '../infrastructure/google/sheet-absence.repository';
+import { PlanningSheet } from '../infrastructure/google/planning-sheet';
 
 let firebaseError = false;
 try {
@@ -43,13 +44,17 @@ export class App {
 
 		this.retrieveAbsencesOfTheDay = new RetrieveAbsencesOfTheDay(this.absenceRepo, this.discordService);
 		this.createAbsenceInGoogle = new CreateAbsence(
-			new GoogleSheetAbsenceRepository(this.googleService),
+			new GoogleSheetAbsenceRepository(this.googleService, new PlanningSheet(this.googleService)),
 			this.discordService
 		);
 		this.createAbsence = {
 			execute: async (input: CreateAbsencePayload) => {
 				const createAbsence = new CreateAbsence(this.absenceRepo, this.discordService);
-				this.createAbsenceInGoogle.execute(input);
+				try {
+					await this.createAbsenceInGoogle.execute(input);
+				} catch (e) {
+					console.error(`Error while create absence in Google sheet: ${e}`);
+				}
 
 				let absence: Absence;
 				try {

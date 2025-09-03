@@ -10,15 +10,18 @@ config();
 const express = Express();
 
 express.get('/ping', (_req: Request, res: Response) => {
-	res.send('pong');
+	res.set('Cache-Control', 'no-store');
+	res.type('text/plain').send('pong');
 });
 
 express.get('/ping-extended', (_req: Request, res: Response) => {
-	res.send({ data: 'pong', status: 'alive', date: new Date().toISOString() });
+	res.set('Cache-Control', 'no-store');
+	res.type('application/json').send({ data: 'pong', status: 'alive', date: new Date().toISOString() });
 });
 
 express.head('/ping', (_req: Request, res: Response) => {
-	res.send('pong');
+	res.set('Cache-Control', 'no-store');
+	res.type('text/plain').send('pong');
 });
 
 express.listen(process.env.PORT, () => {
