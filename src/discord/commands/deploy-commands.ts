@@ -12,7 +12,9 @@ const rest = new REST().setToken(process.env.DISCORD_TOKEN!);
 // Replace 'YOUR_CLIENT_ID' and 'YOUR_GUILD_ID' with your bot's client ID and guild ID
 export async function deployCommands() {
 	try {
-		console.log('Started refreshing application (/) commands.');
+		console.log(
+			`Started refreshing ${commands.length} application (/) commands (${commands.map((command) => command.name).join(', ')}).`
+		);
 
 		await rest.put(Routes.applicationGuildCommands(process.env.CLIENT_ID!, process.env.GUILD_ID!), { body: commands });
 
