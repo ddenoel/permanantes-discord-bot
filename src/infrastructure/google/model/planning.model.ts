@@ -6,6 +6,8 @@ export interface IGoogleSheetPlanningEntry {
 	month: string;
 	/** Date in French in format <Day of week> <Day of month> */
 	date: string;
+	/** Date in full format (ex: "<Day of week> dd/mm/yyyy") */
+	dateFull: string;
 	whereAndWhen: string;
 	what: string;
 	absents: string;

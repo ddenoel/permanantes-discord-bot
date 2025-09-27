@@ -53,14 +53,14 @@ export class App {
 				try {
 					await this.createAbsenceInGoogle.execute(input);
 				} catch (e) {
-					console.error(`Error while create absence in Google sheet: ${e}`);
+					console.error(`Error while creating absence in Google sheet: ${e}`, e);
 				}
 
 				let absence: Absence;
 				try {
 					absence = await createAbsence.execute(input);
 				} catch (e) {
-					console.error(`Error while create absence in Firestore, falling back to in memory: ${e}`);
+					console.error(`Error while creating absence in Firestore, falling back to in memory: ${e}`, e);
 					const inMemoryCreateAbsence = new CreateAbsence(this.absenceRepoFallback, this.discordService);
 					absence = await inMemoryCreateAbsence.execute(input);
 				}

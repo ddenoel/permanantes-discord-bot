@@ -9,13 +9,13 @@ const data = new SlashCommandBuilder();
 data
 	.setName('absence')
 	.setDescription('Prévenir la troupe de votre absence')
-	.addStringOption((option) => option.setName('message').setDescription("Votre message d'absence").setRequired(true))
 	.addStringOption((option) =>
 		option
 			.setName('dates')
 			.setDescription("Date(s) d'absence (format: JJ/MM/AAAA, séparer plusieurs dates par des virgules)")
-			.setRequired(false)
-	);
+			.setRequired(true)
+	)
+	.addStringOption((option) => option.setName('message').setDescription("Votre message d'absence").setRequired(true));
 
 if (process.env.ENV_NAME === 'development') {
 	data.setDefaultMemberPermissions(PermissionFlagsBits.Administrator);

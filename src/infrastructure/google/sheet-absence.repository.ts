@@ -17,6 +17,7 @@ export class GoogleSheetAbsenceRepository implements AbsenceRepository {
 
 	async findByDateAndGuild(date: Date, guildId: string): Promise<Absence[]> {
 		const data = await this.planningSheet.readFile();
+
 		const compareFormat = 'dd-MM-yyyy';
 		const entry = data.find(({ entry }) => format(entry.date, compareFormat) === format(date, compareFormat));
 

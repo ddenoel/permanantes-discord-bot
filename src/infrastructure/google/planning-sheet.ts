@@ -1,6 +1,6 @@
-import { format, parse, setHours, setMinutes } from 'date-fns';
+import { parse, setHours, setMinutes } from 'date-fns';
 import { DateUtils } from '../../app/domain/utils/dates.utils';
-import { Cell, GoogleService } from './google';
+import { GoogleService } from './google';
 import { IGoogleSheetPlanningEntry, IGoogleSheetPlanningEntryEntity } from './model/planning.model';
 
 export class PlanningSheet {
@@ -13,10 +13,11 @@ export class PlanningSheet {
 		column: null,
 		month: 0,
 		date: 1,
-		whereAndWhen: 2,
-		what: 3,
-		absents: 4,
-		other: 5,
+		dateFull: 2,
+		whereAndWhen: 3,
+		what: 4,
+		absents: 5,
+		other: 6,
 	};
 	private indexRowMatcher = Object.fromEntries(
 		Object.entries(this.rowMatcher).map(([key, value]) => [value, key])
@@ -73,6 +74,7 @@ export class PlanningSheet {
 						column: GoogleService.parseIndexToColumn(colIndex + 1),
 						month: null,
 						date: null,
+						dateFull: null,
 						whereAndWhen: null,
 						what: null,
 						absents: null,
@@ -93,10 +95,20 @@ export class PlanningSheet {
 			});
 		});
 
-		return Promise.all(objs.map(async (obj) => ({ col: obj.column, entry: await this.parseEntry(obj) })));
+		return Promise.all(
+			objs
+				.map(async (obj) => {
+					const entry = await this.parseEntry(obj);
+					if (!entry) {
+						return null;
+					}
+					return { col: obj.column, entry };
+				})
+				.filter(Boolean)
+		);
 	}
 
-	private async parseEntry(entry: IGoogleSheetPlanningEntry): Promise<IGoogleSheetPlanningEntryEntity> {
+	private async oldRetrieveDate(entry: IGoogleSheetPlanningEntry): Promise<Date> {
 		const [, years] = (await this.getSheetName()).split(' ');
 		const [year1, year2] = years.split('-');
 		const fullYear1 = parseInt(`20${year1}`);
@@ -104,23 +116,48 @@ export class PlanningSheet {
 		const month = DateUtils.getMonthNumberFromFrenchName(entry.month?.toLowerCase()?.trim());
 		const day = parseInt(entry?.date?.match(/\d+/)[0]);
 
-		const [when, where] = entry.whereAndWhen?.split('\n')?.map((whereAndWhen) => whereAndWhen?.trim()) || [];
-		// Format 20h or 19h30 or 9h15
-		const hours = when?.match(/(\d{1,2})h/)?.[1];
-		const minutes = when?.match(/(\d{1,2})h/)?.[2];
-
 		const year = month < 8 ? fullYear2 : fullYear1;
 
 		const date = parse(`${day}-${month}-${year}`, 'dd-MM-yyyy', new Date());
+
+		return date;
+	}
+
+	private async parseEntry(entry: IGoogleSheetPlanningEntry): Promise<IGoogleSheetPlanningEntryEntity> {
+		if (!entry?.dateFull && !entry?.date) {
+			return null;
+		}
+
+		const dateFull = entry?.dateFull;
+		let date: Date;
+		try {
+			if (dateFull) {
+				const dateString = dateFull.split(' ')?.[1];
+				date = parse(dateString, 'dd/MM/yyyy', new Date());
+			} else {
+				date = await this.oldRetrieveDate(entry);
+			}
+		} catch (error) {
+			console.error('[PlanningSheet] Error parsing Google sheet entry:', error, entry);
+			return null;
+		}
+
+		const [when, where] = entry?.whereAndWhen?.split('\n')?.map((whereAndWhen) => whereAndWhen?.trim()) || [];
+		// Format 20h or 19h30 or 9h15
+		const hours = when?.match(/(\d{1,2})h/)?.[1] || '20';
+		const minutes = when?.match(/(\d{1,2})h/)?.[2] || '00';
+
 		let startDateTime = hours ? setHours(date, parseInt(hours)) : null;
 		if (minutes && startDateTime) {
 			startDateTime = setMinutes(startDateTime, parseInt(minutes));
 		}
 
-		const absents = entry.absents
-			.split(',')
-			.map((name) => name.trim())
-			.filter(Boolean);
+		const absents = entry?.absents
+			? entry.absents
+					.split(',')
+					.map((name) => name.trim())
+					.filter(Boolean)
+			: [];
 
 		return {
 			date,
