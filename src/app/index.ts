@@ -72,8 +72,8 @@ export class App {
 
 	scheduleTasks() {
 		const retrieveAbsenceOfTheDayFallback = new RetrieveAbsencesOfTheDay(this.absenceRepoFallback, this.discordService);
-		// Schedule at 17:30 everyday
-		cron.schedule('30 17 * * *', async () => {
+		// Schedule at 16:30(+2h) everyday
+		cron.schedule('30 16 * * *', async () => {
 			console.info('Checking absences of the day');
 			let absences: Absence[] = [];
 			try {

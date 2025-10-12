@@ -69,7 +69,8 @@ export class PlanningSheet {
 			let prevValue = null;
 
 			cols.forEach((col, colIndex) => {
-				if (index === 0 && colIndex !== 0) {
+				// Ensure an object exists for the current column (some rows may have more columns than the first row)
+				if (colIndex !== 0 && !objs[colIndex - 1]) {
 					const obj: IGoogleSheetPlanningEntry = {
 						column: GoogleService.parseIndexToColumn(colIndex + 1),
 						month: null,
@@ -80,7 +81,7 @@ export class PlanningSheet {
 						absents: null,
 						other: null,
 					};
-					objs.push(obj);
+					objs[colIndex - 1] = obj;
 				}
 				// Ignoring first column (headers)
 				if (colIndex === 0) {
@@ -89,6 +90,10 @@ export class PlanningSheet {
 				// As it can be merged
 				if (!col && propName === 'month') {
 					col = prevValue;
+				}
+				// Skip rows we don't know how to map
+				if (!propName) {
+					return;
 				}
 				objs[colIndex - 1][propName] = col;
 				prevValue = col;
@@ -143,9 +148,10 @@ export class PlanningSheet {
 		}
 
 		const [when, where] = entry?.whereAndWhen?.split('\n')?.map((whereAndWhen) => whereAndWhen?.trim()) || [];
-		// Format 20h or 19h30 or 9h15
-		const hours = when?.match(/(\d{1,2})h/)?.[1] || '20';
-		const minutes = when?.match(/(\d{1,2})h/)?.[2] || '00';
+		// Format examples: 20h, 19h30, 9h15
+		const timeMatch = when?.match(/^(\d{1,2})h(?:(\d{2}))?$/);
+		const hours = timeMatch?.[1] || '20';
+		const minutes = timeMatch?.[2] || '00';
 
 		let startDateTime = hours ? setHours(date, parseInt(hours)) : null;
 		if (minutes && startDateTime) {
