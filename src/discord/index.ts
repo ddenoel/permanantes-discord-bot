@@ -2,6 +2,7 @@ import { Client, Events, GatewayIntentBits, Collection, MessageFlags } from 'dis
 import { config } from 'dotenv';
 import { command as absenceCommand } from './commands/commands/absence';
 import { command as getAbsencesCommand } from './commands/commands/get-absences';
+import { command as getMyAbsencesCommand } from './commands/commands/get-my-absences';
 import { Command } from './commands/command.model';
 import { createThreadOnPost } from './automations';
 import { deployCommands } from './commands/deploy-commands';
@@ -19,6 +20,7 @@ export default async function startDiscord() {
 	const commands = new Collection<string, Command>();
 	commands.set(absenceCommand.data.name, absenceCommand);
 	commands.set(getAbsencesCommand.data.name, getAbsencesCommand);
+	commands.set(getMyAbsencesCommand.data.name, getMyAbsencesCommand);
 
 	// Set up automations
 	createThreadOnPost(client);

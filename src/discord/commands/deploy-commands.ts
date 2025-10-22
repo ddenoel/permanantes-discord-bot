@@ -2,14 +2,14 @@ import { REST, Routes } from 'discord.js';
 import { config } from 'dotenv';
 import { command as absenceCommand } from './commands/absence';
 import { command as getAbsencesCommand } from './commands/get-absences';
+import { command as getMyAbsencesCommand } from './commands/get-my-absences';
 
 config();
 
-const commands = [absenceCommand.data.toJSON(), getAbsencesCommand.data.toJSON()];
+const commands = [absenceCommand.data.toJSON(), getAbsencesCommand.data.toJSON(), getMyAbsencesCommand.data.toJSON()];
 
 const rest = new REST().setToken(process.env.DISCORD_TOKEN!);
 
-// Replace 'YOUR_CLIENT_ID' and 'YOUR_GUILD_ID' with your bot's client ID and guild ID
 export async function deployCommands() {
 	try {
 		console.log(

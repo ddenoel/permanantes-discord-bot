@@ -38,6 +38,22 @@ export class GoogleSheetAbsenceRepository implements AbsenceRepository {
 		);
 	}
 
+	async findByUserAndGuildSince(userId: string, guildId: string, since: Date, userName?: string): Promise<Absence[]> {
+		// The Google Sheet does not store Discord user IDs; cannot match by userId
+		const data = await this.planningSheet.readFile();
+		const userEntries = data.filter(({ entry }) => entry.absents.includes(userName));
+
+		return userEntries.map(
+			(entry) =>
+				new Absence({
+					absenceDate: entry.entry.date,
+					createdAt: new Date(),
+					discord: { member: { displayName: userName, id: null }, guildId },
+					id: null,
+				})
+		);
+	}
+
 	async save(absence: Absence): Promise<void> {
 		const compareFormat = 'dd-MM-yyyy';
 		const data = await this.planningSheet.readFile();

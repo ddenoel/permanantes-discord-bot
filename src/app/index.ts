@@ -9,6 +9,7 @@ import { Absence } from './domain/entities/absence.entity';
 import { WarnAbsence } from './use-cases/warn-absence';
 import cron from 'node-cron';
 import { RetrieveAbsencesOfTheDay } from './use-cases/retrieve-absences-of-the-day';
+import { RetrieveAbsencesOfUser } from './use-cases/retrieve-absences-of-user';
 import { RemindAbsences } from './use-cases/remind-absences';
 import { DiscordService } from './domain/services/discord.service';
 import { GoogleService } from '../infrastructure/google/google';
@@ -35,6 +36,7 @@ export class App {
 	private remindAbsences: RemindAbsences;
 	private discordService: DiscordService;
 	readonly retrieveAbsencesOfTheDay: RetrieveAbsencesOfTheDay;
+	readonly retrieveAbsencesOfUser: RetrieveAbsencesOfUser;
 	private googleService: GoogleService = new GoogleService();
 
 	constructor(private discord: Client) {
@@ -43,6 +45,7 @@ export class App {
 		this.remindAbsences = new RemindAbsences(this.discordService);
 
 		this.retrieveAbsencesOfTheDay = new RetrieveAbsencesOfTheDay(this.absenceRepo, this.discordService);
+		this.retrieveAbsencesOfUser = new RetrieveAbsencesOfUser(this.absenceRepo, this.discordService);
 		this.createAbsenceInGoogle = new CreateAbsence(
 			new GoogleSheetAbsenceRepository(this.googleService, new PlanningSheet(this.googleService)),
 			this.discordService

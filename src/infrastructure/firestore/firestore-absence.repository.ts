@@ -50,6 +50,18 @@ export class FirestoreAbsenceRepository implements AbsenceRepository {
 		return absences.docs.map((doc) => this.documentDataToDomain(doc.data()));
 	}
 
+	async findByUserAndGuildSince(userId: string, guildId: string, since: Date): Promise<Absence[]> {
+		const absences = await this.firestore
+			.collection('absences')
+			.where('discord.guildId', '==', guildId)
+			.where('discord.member.id', '==', userId)
+			.where('absenceDate', '>=', since)
+			.orderBy('absenceDate', 'asc')
+			.get();
+
+		return absences.docs.map((doc) => this.documentDataToDomain(doc.data()));
+	}
+
 	async save(absence: Absence): Promise<void> {
 		const model = this.toPersistence(absence);
 
