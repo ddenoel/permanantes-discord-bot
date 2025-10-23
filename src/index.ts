@@ -1,6 +1,5 @@
 import { config } from 'dotenv';
-import axios from 'axios';
-import Express, { Request, Response } from 'express';
+import Express, { NextFunction, Request, Response } from 'express';
 import discord from './discord';
 import { App } from './app';
 
@@ -8,6 +7,8 @@ import { App } from './app';
 config();
 
 const express = Express();
+
+let app: App;
 
 express.get('/ping', (_req: Request, res: Response) => {
 	res.set('Cache-Control', 'no-store');
@@ -24,13 +25,34 @@ express.head('/ping', (_req: Request, res: Response) => {
 	res.type('text/plain').send('pong');
 });
 
+function verifyApiKey(req: Request, res: Response, next: NextFunction) {
+	const apiKey = req.headers['x-api-key'];
+	if (apiKey !== process.env.API_KEY) {
+		return res.status(401).send('Unauthorized');
+	}
+
+	next();
+}
+
+express.put('/sync-planning', async (_req: Request, res: Response) => {
+	if (!app) {
+		return res.status(500).send('App not initialized');
+	}
+	verifyApiKey(_req, res, async () => {
+		const result = await app.syncPlanning.execute();
+		res.send(
+			`Planning synced : ${result.createdOrUpdated} upserts, ${result.deleted} deletions, ${result.errors} errors`
+		);
+	});
+});
+
 express.listen(process.env.PORT, () => {
 	console.info(`[server]: Server is running at ${process.env.SERVER_URL}:${process.env.PORT}`);
 });
 
 async function start() {
 	const discordClient = await discord();
-	const app = new App(discordClient);
+	app = new App(discordClient);
 
 	app.scheduleTasks();
 }
