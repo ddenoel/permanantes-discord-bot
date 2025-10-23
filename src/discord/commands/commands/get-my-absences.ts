@@ -21,6 +21,7 @@ export const command: Command = {
 		if (!interaction.isCommand()) return;
 
 		try {
+			await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 			const app = new App(interaction.client);
 			const userId = interaction.user.id;
 			let absences: Absence[];
@@ -31,15 +32,14 @@ export const command: Command = {
 				since = data.since;
 			} catch (error) {
 				console.error('[Voir Mes Absences Command] Error retrieving absences:', error);
-				await interaction.reply({ content: USER_ERROR_MESSAGE, flags: MessageFlags.Ephemeral });
+				await interaction.editReply({ content: USER_ERROR_MESSAGE });
 				return;
 			}
 
 			const sinceFormatted = format(since, 'dd/MM/yyyy');
 			if (!absences.length) {
-				await interaction.reply({
+				await interaction.editReply({
 					content: `🎉 Aucune absence depuis le ${sinceFormatted}. \n \n-# Quelle assiduité ! 💪`,
-					flags: MessageFlags.Ephemeral,
 				});
 
 				return;
@@ -50,7 +50,7 @@ export const command: Command = {
 				.map((a) => `- ${format(a.absenceDate, 'dd/MM/yyyy')}${a.message ? ` — _${a.message}_` : ''}`)
 				.join('\n');
 
-			await interaction.reply({ content: message, flags: MessageFlags.Ephemeral });
+			await interaction.editReply({ content: message });
 		} catch (error) {
 			console.error('[Voir Mes Absences Command] Unexpected error:', {
 				error,
@@ -58,7 +58,17 @@ export const command: Command = {
 				channelId: interaction.channelId,
 				guildId: interaction.guildId,
 			});
-			await interaction.reply({ content: USER_ERROR_MESSAGE, flags: MessageFlags.Ephemeral });
+			try {
+				if (interaction.deferred) {
+					await interaction.editReply({ content: USER_ERROR_MESSAGE });
+				} else if (interaction.replied) {
+					await interaction.followUp({ content: USER_ERROR_MESSAGE, flags: MessageFlags.Ephemeral });
+				} else {
+					await interaction.reply({ content: USER_ERROR_MESSAGE, flags: MessageFlags.Ephemeral });
+				}
+			} catch (e) {
+				console.error('[Voir Mes Absences Command] Failed to send error reply:', e);
+			}
 		}
 	},
 };

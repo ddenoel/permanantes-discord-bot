@@ -32,6 +32,7 @@ export const command: Command = {
 		if (!interaction.isCommand()) return;
 
 		try {
+			await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 			const app = new App(interaction.client);
 			const userId = interaction.user.id;
 			const { absences } = await app.retrieveAbsencesOfUser.execute(userId);
@@ -43,7 +44,7 @@ export const command: Command = {
 				.sort((a, b) => a.date.getTime() - b.date.getTime());
 
 			if (!selectable.length) {
-				await interaction.reply({ content: 'Aucune absence supprimable.', flags: MessageFlags.Ephemeral });
+				await interaction.editReply({ content: 'Aucune absence supprimable.' });
 				return;
 			}
 
@@ -66,14 +67,20 @@ export const command: Command = {
 
 			const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(menu);
 
-			await interaction.reply({
-				content: 'Sélectionnez une absence à supprimer :',
-				components: [row],
-				flags: MessageFlags.Ephemeral,
-			});
+			await interaction.editReply({ content: 'Sélectionnez une absence à supprimer :', components: [row] });
 		} catch (error) {
 			console.error('[Supprimer Absence Command] Unexpected error:', error);
-			await interaction.reply({ content: USER_ERROR_MESSAGE, flags: MessageFlags.Ephemeral });
+			try {
+				if (interaction.deferred) {
+					await interaction.editReply({ content: USER_ERROR_MESSAGE });
+				} else if (interaction.replied) {
+					await interaction.followUp({ content: USER_ERROR_MESSAGE, flags: MessageFlags.Ephemeral });
+				} else {
+					await interaction.reply({ content: USER_ERROR_MESSAGE, flags: MessageFlags.Ephemeral });
+				}
+			} catch (e) {
+				console.error('[Supprimer Absence Command] Failed to send error reply:', e);
+			}
 		}
 	},
 	handleCommandInteractions: async (interaction: Interaction) => {
