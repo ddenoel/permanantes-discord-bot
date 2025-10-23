@@ -3,6 +3,10 @@ import { format, startOfDay } from 'date-fns';
 import { fr } from 'date-fns/locale';
 
 export class DateUtils {
+	static formatDate(date: Date): string {
+		return format(date, 'dd/MM/yyyy');
+	}
+
 	static isSameDay(date1: Date, date2: Date): boolean {
 		return startOfDay(date1).getTime() === startOfDay(date2).getTime();
 	}

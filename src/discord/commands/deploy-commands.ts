@@ -3,10 +3,16 @@ import { config } from 'dotenv';
 import { command as absenceCommand } from './commands/absence';
 import { command as getAbsencesCommand } from './commands/get-absences';
 import { command as getMyAbsencesCommand } from './commands/get-my-absences';
+import { command as deleteAbsenceCommand } from './commands/delete-absence';
 
 config();
 
-const commands = [absenceCommand.data.toJSON(), getAbsencesCommand.data.toJSON(), getMyAbsencesCommand.data.toJSON()];
+const commands = [
+	absenceCommand.data.toJSON(),
+	getAbsencesCommand.data.toJSON(),
+	getMyAbsencesCommand.data.toJSON(),
+	deleteAbsenceCommand.data.toJSON(),
+];
 
 const rest = new REST().setToken(process.env.DISCORD_TOKEN!);
 

@@ -1,8 +1,17 @@
-import { Client, Events, GatewayIntentBits, Collection, MessageFlags } from 'discord.js';
+import {
+	Client,
+	Events,
+	GatewayIntentBits,
+	Collection,
+	MessageFlags,
+	InteractionType,
+	StringSelectMenuInteraction,
+} from 'discord.js';
 import { config } from 'dotenv';
 import { command as absenceCommand } from './commands/commands/absence';
 import { command as getAbsencesCommand } from './commands/commands/get-absences';
 import { command as getMyAbsencesCommand } from './commands/commands/get-my-absences';
+import { command as deleteAbsenceCommand } from './commands/commands/delete-absence';
 import { Command } from './commands/command.model';
 import { createThreadOnPost } from './automations';
 import { deployCommands } from './commands/deploy-commands';
@@ -21,6 +30,7 @@ export default async function startDiscord() {
 	commands.set(absenceCommand.data.name, absenceCommand);
 	commands.set(getAbsencesCommand.data.name, getAbsencesCommand);
 	commands.set(getMyAbsencesCommand.data.name, getMyAbsencesCommand);
+	commands.set(deleteAbsenceCommand.data.name, deleteAbsenceCommand);
 
 	// Set up automations
 	createThreadOnPost(client);
@@ -31,31 +41,30 @@ export default async function startDiscord() {
 	});
 
 	client.on(Events.InteractionCreate, async (interaction) => {
-		if (!interaction.isChatInputCommand()) return;
-
-		const command = commands.get(interaction.commandName);
-
-		if (!command) {
-			console.error(`No command matching ${interaction.commandName} was found.`);
+		if (interaction.isChatInputCommand()) {
+			const command = commands.get(interaction.commandName);
+			if (!command) {
+				console.error(`No command matching ${interaction.commandName} was found.`);
+				return;
+			}
+			try {
+				await command.execute(interaction);
+			} catch (error) {
+				console.error(error);
+				const errorMessage =
+					"Une erreur est survenue lors de l'exécution de cette commande! Veuillez réessayer plus tard. Si le problème persiste, contactez Diane ou un administrateur.";
+				if (interaction.replied || interaction.deferred) {
+					await interaction.followUp({ content: errorMessage, flags: MessageFlags.Ephemeral });
+				} else {
+					await interaction.reply({ content: errorMessage, flags: MessageFlags.Ephemeral });
+				}
+			}
 			return;
 		}
 
-		try {
-			await command.execute(interaction);
-		} catch (error) {
-			console.error(error);
-			const errorMessage =
-				"Une erreur est survenue lors de l'exécution de cette commande! Veuillez réessayer plus tard. Si le problème persiste, contactez Diane ou un administrateur.";
-			if (interaction.replied || interaction.deferred) {
-				await interaction.followUp({
-					content: errorMessage,
-					flags: MessageFlags.Ephemeral,
-				});
-			} else {
-				await interaction.reply({
-					content: errorMessage,
-					flags: MessageFlags.Ephemeral,
-				});
+		for (const command of commands.values()) {
+			if (command.handleCommandInteractions) {
+				await command.handleCommandInteractions(interaction);
 			}
 		}
 	});

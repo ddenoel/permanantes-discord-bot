@@ -5,6 +5,7 @@ export interface IDiscordInfo {
 		displayName?: string;
 		username?: string;
 	};
+	messageId?: string;
 }
 
 export interface IAbsenceEntity {

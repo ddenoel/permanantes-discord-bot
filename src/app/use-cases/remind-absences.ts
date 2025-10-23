@@ -1,7 +1,7 @@
 import { Absence, IDiscordInfo } from '../domain/entities/absence.entity';
 
 import { config } from 'dotenv';
-import { Client, TextChannel } from 'discord.js';
+import { TextChannel } from 'discord.js';
 import { DateUtils } from '../domain/utils/dates.utils';
 import { fr } from 'date-fns/locale';
 import { format } from 'date-fns';

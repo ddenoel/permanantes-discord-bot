@@ -5,11 +5,15 @@ import { TextChannel } from 'discord.js';
 import { format } from 'date-fns';
 import { DateUtils } from '../domain/utils/dates.utils';
 import { DiscordService } from '../domain/services/discord.service';
+import { AbsenceRepository } from '../domain/repositories/absence.repostiory';
 
 config();
 
 export class WarnAbsence {
-	constructor(private discordService: DiscordService) {}
+	constructor(
+		private discordService: DiscordService,
+		private readonly repo?: AbsenceRepository
+	) {}
 
 	async execute(absences: Absence[]) {
 		if (!absences?.length) {
@@ -65,5 +69,17 @@ export class WarnAbsence {
 					userId: absence.discord.member.id,
 				});
 			});
+
+		if (this.repo) {
+			try {
+				await this.repo.setDiscordMessageId(absence.id, message.id);
+			} catch (e) {
+				console.error('[Warn absence] Failed to persist discord message id', {
+					absenceId: absence.id,
+					messageId: message.id,
+					error: e,
+				});
+			}
+		}
 	}
 }

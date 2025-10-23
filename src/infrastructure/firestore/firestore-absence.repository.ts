@@ -69,4 +69,18 @@ export class FirestoreAbsenceRepository implements AbsenceRepository {
 
 		return;
 	}
+
+	async findById(absenceId: string): Promise<Absence | null> {
+		const doc = await this.firestore.collection('absences').doc(absenceId).get();
+		if (!doc.exists) return null;
+		return this.documentDataToDomain(doc.data()!);
+	}
+
+	async setDiscordMessageId(absenceId: string, messageId: string): Promise<void> {
+		await this.firestore.collection('absences').doc(absenceId).update({ 'discord.messageId': messageId });
+	}
+
+	async delete(absence: Absence): Promise<void> {
+		await this.firestore.collection('absences').doc(absence.id).delete();
+	}
 }

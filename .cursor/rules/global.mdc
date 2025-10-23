@@ -1,0 +1,28 @@
+---
+alwaysApply: true
+---
+Cette règle est appliquée à tout le projet.
+
+Il s'agit d'une application basée autour principalement autour d'un bot Discord permettant d'aider à l'administration d'une communauté autour d'une association artistique (comédie musicale). 
+
+
+# Stack
+L'application est codée en NodeJS Typescript. 
+La base de données est Firestore.
+Le bot est hébergé sur Render. 
+
+# Architecture
+L'application est en architecture hexagonale composée de 3 couches :
+ - La couche d'infrastructure (infrastructure/)
+ - La couche d'application (app/)
+    - domain : invariants métier
+    - use-cases : logique métier
+
+De manière générale, dès qu'un appel est fait à un service ou outil externe, un port sera créé dans la partie domain et une implémentation dans la partie infrastructure. 
+
+# Règles de développement
+De manière générale, les fichiers seront nommés en anglais.
+Les contenus textuels seront en français.
+
+# Règles précises diverses 
+- On utilisera pas directement date-fns mais le service DateUtils pour les manipulations de dates.
