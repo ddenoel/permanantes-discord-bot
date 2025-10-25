@@ -1,10 +1,27 @@
-import { format, startOfDay } from 'date-fns';
+import { format, startOfDay, parse, isValid } from 'date-fns';
 
 import { fr } from 'date-fns/locale';
+import { MiscellaneousUtils } from './miscellaneous.utils';
 
 export class DateUtils {
 	static formatDate(date: Date): string {
 		return format(date, 'dd/MM/yyyy');
+	}
+
+	static formatWeekday(date: Date): string {
+		return MiscellaneousUtils.uppercaseFirstLetter(format(date, 'EEEE', { locale: fr }));
+	}
+
+	static formatDateWithWeekday(date: Date): string {
+		return `${this.formatWeekday(date)} ${this.formatDate(date)}`;
+	}
+
+	static parseFrenchDate(dateStr: string): Date | null {
+		if (!dateStr) return null;
+		const parsed = parse(dateStr.trim(), 'dd/MM/yyyy', new Date());
+		if (!isValid(parsed)) return null;
+		const start = startOfDay(parsed);
+		return start;
 	}
 
 	static isSameDay(date1: Date, date2: Date): boolean {

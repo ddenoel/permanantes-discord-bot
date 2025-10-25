@@ -17,6 +17,11 @@ import { DiscordService } from './domain/services/discord.service';
 import { GoogleService } from '../infrastructure/google/google';
 import { GoogleSheetAbsenceRepository } from '../infrastructure/google/sheet-absence.repository';
 import { PlanningSheet } from '../infrastructure/google/planning-sheet';
+import { PlanningRepository } from './domain/repositories/planning.repository';
+import { FirestorePlanningRepository } from '../infrastructure/firestore/firestore-planning.repository';
+import { InMemoryPlanningRepository } from '../infrastructure/in-memory/in-memory-planning.repository';
+import { SyncPlanningFromGoogle } from './use-cases/sync-planning-from-google';
+import { RetrieveFuturePlanningEntries } from './use-cases/retrieve-future-planning-entries';
 
 let firebaseError = false;
 try {
@@ -31,23 +36,34 @@ export class App {
 		? new InMemoryAbsenceRepository()
 		: new FirestoreAbsenceRepository();
 	private absenceRepoFallback: AbsenceRepository = new InMemoryAbsenceRepository();
+	private planningRepo: PlanningRepository = firebaseError
+		? new InMemoryPlanningRepository()
+		: new FirestorePlanningRepository();
 
 	createAbsence: CreateAbsence;
 	private createAbsenceInGoogle: CreateAbsence;
 	warnAbsence: WarnAbsence;
 	private remindAbsences: RemindAbsences;
 	private discordService: DiscordService;
+	readonly retrieveFuturePlanningEntries: RetrieveFuturePlanningEntries;
 	readonly retrieveAbsencesOfTheDay: RetrieveAbsencesOfTheDay;
 	readonly retrieveAbsencesOfUser: RetrieveAbsencesOfUser;
 	readonly deleteAbsence: DeleteAbsence;
 	private deleteAbsenceInGoogle: DeleteAbsence;
 	readonly retrieveAbsenceById: RetrieveAbsenceById;
 	private googleService: GoogleService = new GoogleService();
+	private planningSheet: PlanningSheet = new PlanningSheet(this.googleService);
+	syncPlanning: SyncPlanningFromGoogle = new SyncPlanningFromGoogle(
+		this.planningRepo,
+		this.planningSheet,
+		this.absenceRepo
+	);
 
 	constructor(private discord: Client) {
 		this.discordService = new DiscordService(this.discord);
 		this.warnAbsence = new WarnAbsence(this.discordService, this.absenceRepo);
 		this.remindAbsences = new RemindAbsences(this.discordService);
+		this.retrieveFuturePlanningEntries = new RetrieveFuturePlanningEntries(this.planningRepo, this.discordService);
 
 		this.retrieveAbsencesOfTheDay = new RetrieveAbsencesOfTheDay(this.absenceRepo, this.discordService);
 		this.retrieveAbsencesOfUser = new RetrieveAbsencesOfUser(this.absenceRepo, this.discordService);
@@ -58,11 +74,12 @@ export class App {
 		this.retrieveAbsenceById = new RetrieveAbsenceById(this.absenceRepo, this.discordService);
 		this.createAbsenceInGoogle = new CreateAbsence(
 			new GoogleSheetAbsenceRepository(this.googleService, new PlanningSheet(this.googleService)),
-			this.discordService
+			this.discordService,
+			this.planningRepo
 		);
 		this.createAbsence = {
 			execute: async (input: CreateAbsencePayload) => {
-				const createAbsence = new CreateAbsence(this.absenceRepo, this.discordService);
+				const createAbsence = new CreateAbsence(this.absenceRepo, this.discordService, this.planningRepo);
 				try {
 					await this.createAbsenceInGoogle.execute(input);
 				} catch (e) {
@@ -74,7 +91,11 @@ export class App {
 					absence = await createAbsence.execute(input);
 				} catch (e) {
 					console.error(`Error while creating absence in Firestore, falling back to in memory: ${e}`, e);
-					const inMemoryCreateAbsence = new CreateAbsence(this.absenceRepoFallback, this.discordService);
+					const inMemoryCreateAbsence = new CreateAbsence(
+						this.absenceRepoFallback,
+						this.discordService,
+						this.planningRepo
+					);
 					absence = await inMemoryCreateAbsence.execute(input);
 				}
 
@@ -116,6 +137,17 @@ export class App {
 			console.log(`${absences.length} absences found`);
 
 			await this.remindAbsences.execute(absences);
+		});
+
+		// Schedule planning sync twice a week: Tuesday and Friday at 03:00(+2h)
+		cron.schedule('0 3 * * 2,5', async () => {
+			console.info('Syncing planning from Google Sheet');
+			try {
+				const res = await this.syncPlanning.execute();
+				console.info(`Planning sync done: ${res.createdOrUpdated} upserts, ${res.deleted} deletions`);
+			} catch (e) {
+				console.error('Error during planning sync (primary repo). Falling back to in-memory.', e);
+			}
 		});
 	}
 }

@@ -1,4 +1,4 @@
-import { IPlanningEntryEntity } from '../../../app/domain/entities/planning.entity';
+import { PlanningEventType, PlanningProject } from '../../../app/domain/entities/planning.entity';
 
 export interface IGoogleSheetPlanningEntry {
 	column: string;
@@ -12,8 +12,19 @@ export interface IGoogleSheetPlanningEntry {
 	what: string;
 	absents: string;
 	other: string;
+	project: PlanningProject;
 }
 
-export type IGoogleSheetPlanningEntryEntity = Omit<IPlanningEntryEntity, 'absents'> & {
+export type IGoogleSheetPlanningEntryEntity = {
+	date: Date;
+	startDateTime?: Date;
+	endDateTime?: Date;
+	location: {
+		name: string;
+	};
+	type: PlanningEventType;
+	what: string;
 	absents: string[];
+	otherInfos?: string;
+	project: PlanningProject;
 };

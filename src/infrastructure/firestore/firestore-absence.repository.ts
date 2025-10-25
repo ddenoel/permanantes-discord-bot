@@ -13,11 +13,15 @@ export class FirestoreAbsenceRepository implements AbsenceRepository {
 		return admin.firestore();
 	}
 
-	private toDomain(model: AbsenceModel): Absence {
+	static toDomain(model: AbsenceModel): Absence {
 		return new Absence(model);
 	}
 
-	private toPersistence(absence: Absence): AbsenceModel {
+	toDomain(model: AbsenceModel): Absence {
+		return FirestoreAbsenceRepository.toDomain(model);
+	}
+
+	static toPersistence(absence: Absence): AbsenceModel {
 		const model = new AbsenceModel();
 		model.id = absence.id;
 		model.discord = absence.discord;
@@ -26,6 +30,10 @@ export class FirestoreAbsenceRepository implements AbsenceRepository {
 		model.message = absence.message;
 
 		return model;
+	}
+
+	toPersistence(absence: Absence): AbsenceModel {
+		return FirestoreAbsenceRepository.toPersistence(absence);
 	}
 
 	private documentDataToDomain(data: admin.firestore.DocumentData) {

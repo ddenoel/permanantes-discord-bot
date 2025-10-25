@@ -1,4 +1,4 @@
-import { format } from 'date-fns';
+import { format, isAfter } from 'date-fns';
 import { Absence } from '../../app/domain/entities/absence.entity';
 import { AbsenceRepository } from '../../app/domain/repositories/absence.repostiory';
 import { Cell, GoogleService } from './google';
@@ -25,34 +25,20 @@ export class GoogleSheetAbsenceRepository implements AbsenceRepository {
 			return [];
 		}
 
-		const absents = entry.entry.absents;
-
-		return absents.map(
-			(absent) =>
-				new Absence({
-					absenceDate: date,
-					createdAt: new Date(),
-					discord: { member: { displayName: absent, id: null }, guildId },
-					id: null,
-				})
-		);
+		return entry.entry.absences;
 	}
 
 	async findByUserAndGuildSince(userId: string, guildId: string, since: Date, userName?: string): Promise<Absence[]> {
 		// The Google Sheet does not store Discord user IDs; we fallback to matching by display name when provided
 		if (!userName) return [];
 		const data = await this.planningSheet.readFile();
-		const userEntries = data.filter(({ entry }) => entry.absents.includes(userName));
 
-		return userEntries.map(
-			(entry) =>
-				new Absence({
-					absenceDate: entry.entry.date,
-					createdAt: new Date(),
-					discord: { member: { displayName: userName, id: null }, guildId },
-					id: null,
-				})
+		const userEntries = data.filter(
+			({ entry }) =>
+				isAfter(entry.date, since) && entry.absences.some((absence) => absence.discord.member.displayName === userName)
 		);
+
+		return userEntries.flatMap(({ entry }) => entry.absences);
 	}
 
 	async setDiscordMessageId(absenceId: string, messageId: string): Promise<void> {
@@ -76,7 +62,7 @@ export class GoogleSheetAbsenceRepository implements AbsenceRepository {
 			return;
 		}
 
-		const absents = new Set(entry.entry.absents);
+		const absents = new Set(entry.entry.absences.map((absence) => absence.discord.member.displayName));
 		const userName = absence.discord.member.displayName;
 		if (absents.has(userName)) {
 			return;
@@ -101,7 +87,7 @@ export class GoogleSheetAbsenceRepository implements AbsenceRepository {
 			({ entry }) => format(entry.date, compareFormat) === format(absence.absenceDate, compareFormat)
 		);
 		if (!entry) return;
-		const absents = new Set(entry.entry.absents);
+		const absents = new Set(entry.entry.absences.map((absence) => absence.discord.member.displayName));
 		if (!absents.has(userDisplayName)) return;
 		absents.delete(userDisplayName);
 		const cell: Cell = { row: this.planningSheet.getLineIndexFor('absents') + 1, column: entry.col };

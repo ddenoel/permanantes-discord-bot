@@ -2,6 +2,7 @@ import { parse, setHours, setMinutes } from 'date-fns';
 import { DateUtils } from '../../app/domain/utils/dates.utils';
 import { GoogleService } from './google';
 import { IGoogleSheetPlanningEntry, IGoogleSheetPlanningEntryEntity } from './model/planning.model';
+import { IPlanningEntryEntity, PlanningEntry } from '../../app/domain/entities/planning.entity';
 
 export class PlanningSheet {
 	private readonly fileId = process.env.GOOGLE_ABSENCES_FILE_ID;
@@ -18,6 +19,7 @@ export class PlanningSheet {
 		what: 4,
 		absents: 5,
 		other: 6,
+		project: 7,
 	};
 	private indexRowMatcher = Object.fromEntries(
 		Object.entries(this.rowMatcher).map(([key, value]) => [value, key])
@@ -29,6 +31,24 @@ export class PlanningSheet {
 
 	getLineIndexFor(prop: keyof IGoogleSheetPlanningEntry) {
 		return this.rowMatcher[prop];
+	}
+
+	toDomain(entry: IGoogleSheetPlanningEntryEntity): IPlanningEntryEntity {
+		const guildId = process.env.GUILD_ID;
+
+		return new PlanningEntry({
+			...entry,
+			lastSyncAt: null,
+			lastSyncKey: null,
+			absences: entry.absents.map((absent) => ({
+				id: null,
+				discord: { member: { displayName: absent, id: null }, guildId },
+				absenceDate: entry.date,
+				createdAt: new Date(),
+			})),
+			discord: { guildId },
+			project: PlanningEntry.parseProject(entry.project),
+		});
 	}
 
 	/**
@@ -54,7 +74,7 @@ export class PlanningSheet {
 		return this.defaultSheetName;
 	}
 
-	async readFile(): Promise<{ col: string; entry: IGoogleSheetPlanningEntryEntity }[]> {
+	async readFile(): Promise<{ col: string; entry: IPlanningEntryEntity }[]> {
 		if (!this.fileId) {
 			console.error('[GoogleSheetAbsenceRepository] GOOGLE_ABSENCES_FILE_ID is not defined');
 			return [];
@@ -80,6 +100,7 @@ export class PlanningSheet {
 						what: null,
 						absents: null,
 						other: null,
+						project: 'other',
 					};
 					objs[colIndex - 1] = obj;
 				}
@@ -107,7 +128,7 @@ export class PlanningSheet {
 					if (!entry) {
 						return null;
 					}
-					return { col: obj.column, entry };
+					return { col: obj.column, entry: this.toDomain(entry) };
 				})
 				.filter(Boolean)
 		);
@@ -129,7 +150,7 @@ export class PlanningSheet {
 	}
 
 	private async parseEntry(entry: IGoogleSheetPlanningEntry): Promise<IGoogleSheetPlanningEntryEntity> {
-		if (!entry?.dateFull && !entry?.date) {
+		if (!entry?.dateFull) {
 			return null;
 		}
 
@@ -174,6 +195,7 @@ export class PlanningSheet {
 			what: entry.what,
 			absents,
 			otherInfos: entry.other,
+			project: PlanningEntry.parseProject(entry.project),
 		};
 	}
 }
