@@ -9,7 +9,7 @@ import {
 } from 'discord.js';
 import { config } from 'dotenv';
 import { command as absenceCommand } from './commands/commands/absence';
-import { command as getAbsencesCommand } from './commands/commands/get-absences';
+import { command as getAbsencesCommand } from './commands/commands/get-absences-of-the-day';
 import { command as getMyAbsencesCommand } from './commands/commands/get-my-absences';
 import { command as deleteAbsenceCommand } from './commands/commands/delete-absence';
 import { Command } from './commands/command.model';

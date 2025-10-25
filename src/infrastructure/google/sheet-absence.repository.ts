@@ -83,9 +83,12 @@ export class GoogleSheetAbsenceRepository implements AbsenceRepository {
 
 		const compareFormat = 'dd-MM-yyyy';
 		const data = await this.planningSheet.readFile();
-		const entry = data.find(
-			({ entry }) => format(entry.date, compareFormat) === format(absence.absenceDate, compareFormat)
-		);
+		const entry = data.find((ent) => {
+			if (!ent?.entry) return false;
+			const { entry } = ent;
+
+			return format(entry.date, compareFormat) === format(absence.absenceDate, compareFormat);
+		});
 		if (!entry) return;
 		const absents = new Set(entry.entry.absences.map((absence) => absence.discord.member.displayName));
 		if (!absents.has(userDisplayName)) return;

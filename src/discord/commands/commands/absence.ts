@@ -20,6 +20,8 @@ import { DateUtils } from '../../../app/domain/utils/dates.utils';
 import { IPlanningEntryEntity } from '../../../app/domain/entities/planning.entity';
 import { MiscellaneousUtils } from '../../../app/domain/utils/miscellaneous.utils';
 import { monthEmojiByIndex } from '../../../app/domain/data/dates.data';
+import { verifyRole } from './shared/verify-role';
+import { getPlanningEntriesAsSelect } from './shared/get-planning-entries-as-select';
 
 const data = new SlashCommandBuilder();
 
@@ -44,11 +46,9 @@ const PREV_DATES_BTN_ID = 'absence_prev_dates_btn';
 const NEXT_DATES_BTN_ID = 'absence_next_dates_btn';
 
 const pendingAbsenceByUser = new Map<string, { date: Date; message?: string }>();
-const paginationByUser = new Map<
-	string,
-	{ entries: IPlanningEntryEntity[]; pageIndex: number; pageSize: number; disabledIsoValues: Set<string> }
->();
 const lastSelectInteractionByUser = new Map<string, Interaction>();
+const disabledIsoValuesByUser = new Map<string, Set<string>>();
+const paginationHandlerByUser = new Map<string, (i: Interaction) => Promise<void>>();
 
 const manualDateBtn = new ButtonBuilder()
 	.setCustomId(MANUAL_DATE_BTN_ID)
@@ -62,19 +62,8 @@ export const command: Command = {
 		await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
 		try {
-			// Role restriction
-			const allowedRoleId = process.env.ABSENCE_ALLOWED_ROLE_ID;
-			if (allowedRoleId) {
-				const member = await interaction.guild.members.fetch(interaction.user.id);
-				if (!member.roles.cache.has(allowedRoleId)) {
-					const role = interaction.guild.roles.cache.get(allowedRoleId);
-					await interaction.editReply({
-						content: `Vous n'avez pas le rôle ${role ? `<@&${role.id}>` : ''} requis pour utiliser cette commande.`,
-					});
-
-					return;
-				}
-			}
+			const roleOk = await verifyRole(interaction);
+			if (!roleOk) return;
 
 			const app = new App(interaction.client);
 			let entries: IPlanningEntryEntity[] = [];
@@ -105,18 +94,23 @@ export const command: Command = {
 			}
 
 			const disabledIsoValues = new Set<string>(userAbsences.map((a) => new Date(a.absenceDate).toISOString()));
-
-			paginationByUser.set(interaction.user.id, {
-				entries,
-				pageIndex: 0,
-				pageSize: 25,
-				disabledIsoValues,
-			});
+			disabledIsoValuesByUser.set(interaction.user.id, disabledIsoValues);
 
 			// Keep a reference to the initial command interaction to clear its message later
 			lastSelectInteractionByUser.set(interaction.user.id, interaction);
 
-			await renderSelectPage(interaction, interaction.user.id);
+			const { components, handleInteraction } = getPlanningEntriesAsSelect(interaction, entries, {
+				customIds: { select: SELECT_ID, prev: PREV_DATES_BTN_ID, next: NEXT_DATES_BTN_ID },
+				pageIndex: 0,
+				pageSize: 25,
+				disabledIsoValues,
+				manualDateButton: manualDateBtn,
+			});
+			paginationHandlerByUser.set(interaction.user.id, handleInteraction);
+			await interaction.editReply({
+				content: '📅 Sélectionnez la date de répétition où vous ne serez pas là :',
+				components,
+			});
 		} catch (error) {
 			console.error('[Absence Command] Unexpected error:', error);
 			await interaction.editReply({ content: USER_ERROR_MESSAGE });
@@ -133,7 +127,8 @@ export const command: Command = {
 				interaction.isButton() &&
 				(interaction.customId === NEXT_DATES_BTN_ID || interaction.customId === PREV_DATES_BTN_ID)
 			) {
-				await handlePagination(interaction);
+				const handler = paginationHandlerByUser.get(interaction.user.id);
+				if (handler) await handler(interaction);
 				return;
 			}
 		} catch (error) {
@@ -145,95 +140,7 @@ export const command: Command = {
 	},
 };
 
-async function renderSelectPage(interaction: Interaction, userId: string) {
-	const state = paginationByUser.get(userId);
-	if (!state) return;
-	const { entries, pageIndex, pageSize, disabledIsoValues } = state;
-	const start = pageIndex * pageSize;
-	const slice = entries.slice(start, start + pageSize);
-
-	const options = slice.map((e) => {
-		const date = e.date;
-		const emoji = monthEmojiByIndex[date.getMonth()] || '📅';
-		const iso = date.toISOString();
-		let labelBase = `${DateUtils.formatDateWithWeekday(date)}`;
-		if (DateUtils.isSameDay(date, new Date())) {
-			labelBase = `Aujourd'hui (${labelBase})`;
-		}
-		const already = disabledIsoValues.has(iso);
-		return new StringSelectMenuOptionBuilder()
-			.setLabel(labelBase)
-			.setEmoji(already ? '❌' : emoji)
-			.setDescription((e.what ? `Thème : ${e.what}` : '') + (already ? ' (Vous êtes déjà absent ce jour)' : ''))
-			.setValue(iso);
-	});
-
-	if (!options.length) {
-		options.push(new StringSelectMenuOptionBuilder().setLabel('Aucune date').setDescription('').setValue('none'));
-	}
-
-	const select = new StringSelectMenuBuilder()
-		.setCustomId(SELECT_ID)
-		.setPlaceholder('Choisissez une date de répétition')
-		.addOptions(options);
-
-	const selectRow = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
-
-	const components: ActionRowBuilder<StringSelectMenuBuilder | ButtonBuilder>[] = [selectRow];
-	const controls = new ActionRowBuilder<ButtonBuilder>();
-
-	if (options.length <= pageSize) {
-		controls.addComponents(
-			new ButtonBuilder()
-				.setCustomId(PREV_DATES_BTN_ID)
-				.setLabel('⬅️🗓️ Dates précédentes')
-				.setStyle(ButtonStyle.Secondary)
-				.setDisabled(pageIndex === 0),
-			new ButtonBuilder()
-				.setCustomId(NEXT_DATES_BTN_ID)
-				.setLabel('Dates suivantes 🗓️➡️')
-				.setStyle(ButtonStyle.Secondary)
-				.setDisabled((pageIndex + 1) * pageSize >= entries.length),
-			manualDateBtn
-		);
-	} else {
-		controls.addComponents(manualDateBtn);
-	}
-	components.push(controls);
-
-	const content = '📅 Sélectionnez la date de répétition où vous ne serez pas là :';
-	if ((interaction as any).isButton?.() || (interaction as any).isStringSelectMenu?.()) {
-		await (interaction as any).update?.({
-			content,
-			components,
-		});
-	} else if ((interaction as any).deferred || (interaction as any).replied) {
-		await (interaction as any).editReply?.({
-			content,
-			components,
-		});
-	} else {
-		await (interaction as any).reply?.({
-			content,
-			components,
-			flags: MessageFlags.Ephemeral,
-		});
-	}
-}
-
-async function handlePagination(interaction: Interaction) {
-	if (!interaction.isButton()) return;
-	const userId = interaction.user.id;
-	const state = paginationByUser.get(userId);
-	if (!state) return;
-	if (interaction.customId === NEXT_DATES_BTN_ID) {
-		state.pageIndex = Math.min(state.pageIndex + 1, Math.ceil(state.entries.length / state.pageSize) - 1);
-	} else if (interaction.customId === PREV_DATES_BTN_ID) {
-		state.pageIndex = Math.max(state.pageIndex - 1, 0);
-	}
-	paginationByUser.set(userId, state);
-	await renderSelectPage(interaction, userId);
-}
+// pagination now handled by shared helper via paginationHandlerByUser
 
 const MESSAGE_PLACEHOLDERS: string[] = [
 	"Désolé, j'ai aquaponey ce jour-là et je monte pomponette!",
@@ -255,8 +162,8 @@ async function handleDateSelection(interaction: Interaction) {
 			return;
 		}
 
-		const state = paginationByUser.get(userId);
-		if (state && state.disabledIsoValues && state.disabledIsoValues.has(iso)) {
+		const disabledSet = disabledIsoValuesByUser.get(userId);
+		if (disabledSet && disabledSet.has(iso)) {
 			await interaction.reply({ content: 'Vous êtes déjà absent ce jour.', flags: MessageFlags.Ephemeral });
 			return true;
 		}
