@@ -1,6 +1,7 @@
 import { IAbsenceEntity } from './absence.entity';
 
 export type PlanningEventType = 'unknown' | 'rehearsal' | 'show' | 'workshop' | 'off';
+export type PlanningProject = 'atelier' | 'stage' | 'summer_school' | 'off' | 'cine_broadway' | 'other';
 
 export interface IPlanningDiscordInfo {
 	guildId: string;
@@ -15,6 +16,7 @@ export interface IPlanningEntryEntity {
 		name: string;
 	};
 	type: PlanningEventType;
+	project: PlanningProject;
 	what: string;
 	absences: IAbsenceEntity[];
 	otherInfos?: string;
@@ -35,6 +37,7 @@ export class PlanningEntry implements IPlanningEntryEntity {
 		name: string;
 	};
 	type: PlanningEventType;
+	project: PlanningProject;
 	what: string;
 	absences: IAbsenceEntity[];
 	otherInfos?: string;
@@ -52,6 +55,7 @@ export class PlanningEntry implements IPlanningEntryEntity {
 		this.otherInfos = planningEntry.otherInfos;
 		this.lastSyncAt = planningEntry.lastSyncAt;
 		this.discord = planningEntry.discord;
+		this.project = planningEntry.project;
 	}
 
 	static computeId(date: Date, guildId: string): string {
@@ -94,6 +98,24 @@ export class PlanningEntry implements IPlanningEntryEntity {
 			discord: this.discord,
 			lastSyncAt: this.lastSyncAt ? new Date(this.lastSyncAt) : undefined,
 			lastSyncKey: this.lastSyncKey,
+			project: this.project,
 		};
+	}
+
+	static parseProject(stringProject: string): PlanningProject {
+		switch (stringProject) {
+			case 'atelier':
+				return 'atelier';
+			case 'stage':
+				return 'stage';
+			case 'summer_school':
+				return 'summer_school';
+			case 'off':
+				return 'off';
+			case 'cine_broadway':
+				return 'cine_broadway';
+			default:
+				return 'other';
+		}
 	}
 }

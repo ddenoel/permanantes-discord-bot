@@ -34,6 +34,7 @@ export class SyncPlanningFromGoogle {
 					absences: [],
 					discord: { guildId },
 					lastSyncAt: undefined,
+					project: PlanningEntry.parseProject(sheetEntry.project),
 				};
 				const absences = await this.absenceRepo.findByDateAndGuild(base.date, guildId);
 				const entity = new PlanningEntry({ ...base, absences });

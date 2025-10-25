@@ -164,7 +164,7 @@ async function renderSelectPage(interaction: Interaction, userId: string) {
 		return new StringSelectMenuOptionBuilder()
 			.setLabel(labelBase)
 			.setEmoji(already ? '❌' : emoji)
-			.setDescription(e.what ? `Thème : ${e.what}` : '' + already ? '(Vous êtes déjà absent ce jour.)' : '')
+			.setDescription((e.what ? `Thème : ${e.what}` : '') + (already ? ' (Vous êtes déjà absent ce jour)' : ''))
 			.setValue(iso);
 	});
 
@@ -180,9 +180,10 @@ async function renderSelectPage(interaction: Interaction, userId: string) {
 	const selectRow = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
 
 	const components: ActionRowBuilder<StringSelectMenuBuilder | ButtonBuilder>[] = [selectRow];
+	const controls = new ActionRowBuilder<ButtonBuilder>();
 
-	if (options.length > pageSize) {
-		const controls = new ActionRowBuilder<ButtonBuilder>().addComponents(
+	if (options.length <= pageSize) {
+		controls.addComponents(
 			new ButtonBuilder()
 				.setCustomId(PREV_DATES_BTN_ID)
 				.setLabel('⬅️🗓️ Dates précédentes')
@@ -195,8 +196,10 @@ async function renderSelectPage(interaction: Interaction, userId: string) {
 				.setDisabled((pageIndex + 1) * pageSize >= entries.length),
 			manualDateBtn
 		);
-		components.push(controls);
+	} else {
+		controls.addComponents(manualDateBtn);
 	}
+	components.push(controls);
 
 	const content = '📅 Sélectionnez la date de répétition où vous ne serez pas là :';
 	if ((interaction as any).isButton?.() || (interaction as any).isStringSelectMenu?.()) {

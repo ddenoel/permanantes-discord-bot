@@ -1,4 +1,4 @@
-import { IPlanningEntryEntity, PlanningEventType } from '../../../app/domain/entities/planning.entity';
+import { PlanningEventType, PlanningProject } from '../../../app/domain/entities/planning.entity';
 
 export interface IGoogleSheetPlanningEntry {
 	column: string;
@@ -12,6 +12,7 @@ export interface IGoogleSheetPlanningEntry {
 	what: string;
 	absents: string;
 	other: string;
+	project: PlanningProject;
 }
 
 export type IGoogleSheetPlanningEntryEntity = {
@@ -25,4 +26,5 @@ export type IGoogleSheetPlanningEntryEntity = {
 	what: string;
 	absents: string[];
 	otherInfos?: string;
+	project: PlanningProject;
 };

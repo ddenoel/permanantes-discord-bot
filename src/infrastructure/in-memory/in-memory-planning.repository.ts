@@ -1,5 +1,5 @@
 import { PlanningRepository } from '../../app/domain/repositories/planning.repository';
-import { IPlanningEntryEntity, PlanningEntry } from '../../app/domain/entities/planning.entity';
+import { IPlanningEntryEntity, PlanningEntry, PlanningProject } from '../../app/domain/entities/planning.entity';
 
 type Stored = IPlanningEntryEntity & {
 	lastSyncKey?: string;
@@ -40,11 +40,11 @@ export class InMemoryPlanningRepository implements PlanningRepository {
 		entriesByKey.set(key, existing);
 	}
 
-	async findAllFuture(guildId: string, fromDate?: Date): Promise<IPlanningEntryEntity[]> {
-		const start = fromDate ? new Date(fromDate) : new Date();
+	async findAllFuture(guildId: string, project?: PlanningProject): Promise<IPlanningEntryEntity[]> {
+		const start = new Date();
 		start.setHours(0, 0, 0, 0);
 		return Array.from(entriesByKey.values())
-			.filter((e) => e.discord?.guildId === guildId && e.date.getTime() >= start.getTime())
+			.filter((e) => e.discord?.guildId === guildId && e.date.getTime() >= start.getTime() && e.project === project)
 			.sort((a, b) => a.date.getTime() - b.date.getTime());
 	}
 }

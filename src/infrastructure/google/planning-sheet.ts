@@ -19,6 +19,7 @@ export class PlanningSheet {
 		what: 4,
 		absents: 5,
 		other: 6,
+		project: 7,
 	};
 	private indexRowMatcher = Object.fromEntries(
 		Object.entries(this.rowMatcher).map(([key, value]) => [value, key])
@@ -46,6 +47,7 @@ export class PlanningSheet {
 				createdAt: new Date(),
 			})),
 			discord: { guildId },
+			project: PlanningEntry.parseProject(entry.project),
 		});
 	}
 
@@ -98,6 +100,7 @@ export class PlanningSheet {
 						what: null,
 						absents: null,
 						other: null,
+						project: 'other',
 					};
 					objs[colIndex - 1] = obj;
 				}
@@ -192,6 +195,7 @@ export class PlanningSheet {
 			what: entry.what,
 			absents,
 			otherInfos: entry.other,
+			project: PlanningEntry.parseProject(entry.project),
 		};
 	}
 }

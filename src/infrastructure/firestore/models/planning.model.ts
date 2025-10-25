@@ -3,6 +3,7 @@ import {
 	IPlanningDiscordInfo,
 	IPlanningEntryEntity,
 	PlanningEventType,
+	PlanningProject,
 } from '../../../app/domain/entities/planning.entity';
 
 type LocationModel = {
@@ -33,5 +34,6 @@ export class PlanningModel implements Omit<IPlanningEntryEntity, 'absences'> {
 	 */
 	lastSyncAt?: Date;
 	lastSyncKey: string; // yyyy-MM-dd
+	project: PlanningProject;
 	discord: IPlanningDiscordInfo;
 }

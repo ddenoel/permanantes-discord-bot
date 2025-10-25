@@ -1,4 +1,4 @@
-import { IPlanningEntryEntity } from '../entities/planning.entity';
+import { IPlanningEntryEntity, PlanningProject } from '../entities/planning.entity';
 
 export interface PlanningRepository {
 	/**
@@ -22,7 +22,7 @@ export interface PlanningRepository {
 	addAbsence(date: Date, guildId: string, absenceId: string): Promise<void>;
 
 	/**
-	 * Returns all planning entries with a date >= fromDate (default: today) for the given guild.
+	 * Returns all planning entries with a date >= today (default: today) for the given guild.
 	 */
-	findAllFuture(guildId: string, fromDate?: Date): Promise<IPlanningEntryEntity[]>;
+	findAllFuture(guildId: string, project?: PlanningProject): Promise<IPlanningEntryEntity[]>;
 }

@@ -1,7 +1,7 @@
 import { getRepository } from 'fireorm';
 import * as admin from 'firebase-admin';
 import { PlanningRepository } from '../../app/domain/repositories/planning.repository';
-import { IPlanningEntryEntity, PlanningEntry } from '../../app/domain/entities/planning.entity';
+import { IPlanningEntryEntity, PlanningEntry, PlanningProject } from '../../app/domain/entities/planning.entity';
 import { PlanningModel } from './models/planning.model';
 import { IAbsenceEntity } from '../../app/domain/entities/absence.entity';
 
@@ -36,6 +36,7 @@ export class FirestorePlanningRepository implements PlanningRepository {
 			lastSyncKey: model.lastSyncKey,
 			lastSyncAt: model.lastSyncAt,
 			discord: model.discord,
+			project: model.project,
 		};
 	}
 
@@ -56,6 +57,7 @@ export class FirestorePlanningRepository implements PlanningRepository {
 			lastSyncAt: entry.lastSyncAt,
 			lastSyncKey: entry.lastSyncKey,
 			discord: entry.discord,
+			project: entry.project,
 		};
 	}
 
@@ -93,13 +95,14 @@ export class FirestorePlanningRepository implements PlanningRepository {
 			.set({ absenceIds: (admin.firestore as any).FieldValue.arrayUnion(absenceId) }, { merge: true });
 	}
 
-	async findAllFuture(guildId: string, fromDate?: Date): Promise<IPlanningEntryEntity[]> {
-		const start = fromDate ? new Date(fromDate) : new Date();
+	async findAllFuture(guildId: string, project?: PlanningProject): Promise<IPlanningEntryEntity[]> {
+		const start = new Date();
 		start.setHours(0, 0, 0, 0);
 		const snapshot = await this.firestore
 			.collection('planning')
 			.where('discord.guildId', '==', guildId)
 			.where('date', '>=', start)
+			.where('project', '==', project)
 			.orderBy('date', 'asc')
 			.get();
 

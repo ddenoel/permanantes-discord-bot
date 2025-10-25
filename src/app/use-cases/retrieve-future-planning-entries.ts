@@ -1,4 +1,4 @@
-import { IPlanningEntryEntity } from '../domain/entities/planning.entity';
+import { IPlanningEntryEntity, PlanningProject } from '../domain/entities/planning.entity';
 import { PlanningRepository } from '../domain/repositories/planning.repository';
 import { DiscordService } from '../domain/services/discord.service';
 
@@ -8,8 +8,9 @@ export class RetrieveFuturePlanningEntries {
 		private readonly discordService: DiscordService
 	) {}
 
-	async execute(fromDate?: Date): Promise<IPlanningEntryEntity[]> {
+	async execute(project?: PlanningProject): Promise<IPlanningEntryEntity[]> {
+		project ??= 'atelier';
 		const guildId = this.discordService.guildId;
-		return this.planningRepo.findAllFuture(guildId, fromDate);
+		return this.planningRepo.findAllFuture(guildId, project);
 	}
 }
