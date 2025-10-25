@@ -92,4 +92,17 @@ export class FirestorePlanningRepository implements PlanningRepository {
 			.doc(id)
 			.set({ absenceIds: (admin.firestore as any).FieldValue.arrayUnion(absenceId) }, { merge: true });
 	}
+
+	async findAllFuture(guildId: string, fromDate?: Date): Promise<IPlanningEntryEntity[]> {
+		const start = fromDate ? new Date(fromDate) : new Date();
+		start.setHours(0, 0, 0, 0);
+		const snapshot = await this.firestore
+			.collection('planning')
+			.where('discord.guildId', '==', guildId)
+			.where('date', '>=', start)
+			.orderBy('date', 'asc')
+			.get();
+
+		return snapshot.docs.map((doc) => this.toDomain(doc.data() as any));
+	}
 }

@@ -50,19 +50,30 @@ export const command: Command = {
 
 			const MAX_NUMBER_OF_CHARS_MESSAGE = 30;
 
-			const trimMessage = (message: string) =>
-				message.slice(0, MAX_NUMBER_OF_CHARS_MESSAGE) + (message.length > MAX_NUMBER_OF_CHARS_MESSAGE ? '...' : '');
+			const trimMessage = (message: string) => {
+				try {
+					if (!message) return '';
+					if (message.length <= MAX_NUMBER_OF_CHARS_MESSAGE) return message;
+
+					return (
+						message.slice(0, MAX_NUMBER_OF_CHARS_MESSAGE) + (message.length > MAX_NUMBER_OF_CHARS_MESSAGE ? '...' : '')
+					);
+				} catch (error) {
+					console.error('[Trim Message] Error:', error);
+					return '';
+				}
+			};
 
 			const menu = new StringSelectMenuBuilder()
 				.setCustomId(SELECT_ID)
 				.setPlaceholder('Choisissez une absence à supprimer')
 				.addOptions(
-					selectable.map(({ id, date, message }) =>
-						new StringSelectMenuOptionBuilder()
-							.setLabel(`${DateUtils.formatDate(date)}`)
-							.setDescription(trimMessage(message))
-							.setValue(id)
-					)
+					selectable.map(({ id, date, message }) => {
+						const desc = trimMessage(message);
+						const option = new StringSelectMenuOptionBuilder().setLabel(`${DateUtils.formatDate(date)}`).setValue(id);
+						option.setDescription(desc && desc.length > 0 ? desc : '\u200B');
+						return option;
+					})
 				);
 
 			const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(menu);

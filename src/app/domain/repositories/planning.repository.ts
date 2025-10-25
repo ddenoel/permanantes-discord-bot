@@ -20,4 +20,9 @@ export interface PlanningRepository {
 	 * Adds an absence id to the planning entry for the given date and guild.
 	 */
 	addAbsence(date: Date, guildId: string, absenceId: string): Promise<void>;
+
+	/**
+	 * Returns all planning entries with a date >= fromDate (default: today) for the given guild.
+	 */
+	findAllFuture(guildId: string, fromDate?: Date): Promise<IPlanningEntryEntity[]>;
 }

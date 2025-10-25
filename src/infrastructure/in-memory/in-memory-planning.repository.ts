@@ -39,4 +39,12 @@ export class InMemoryPlanningRepository implements PlanningRepository {
 		existing.absenceIds = Array.from(new Set([...(existing.absenceIds || []), absenceId]));
 		entriesByKey.set(key, existing);
 	}
+
+	async findAllFuture(guildId: string, fromDate?: Date): Promise<IPlanningEntryEntity[]> {
+		const start = fromDate ? new Date(fromDate) : new Date();
+		start.setHours(0, 0, 0, 0);
+		return Array.from(entriesByKey.values())
+			.filter((e) => e.discord?.guildId === guildId && e.date.getTime() >= start.getTime())
+			.sort((a, b) => a.date.getTime() - b.date.getTime());
+	}
 }

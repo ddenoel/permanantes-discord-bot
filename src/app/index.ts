@@ -21,6 +21,7 @@ import { PlanningRepository } from './domain/repositories/planning.repository';
 import { FirestorePlanningRepository } from '../infrastructure/firestore/firestore-planning.repository';
 import { InMemoryPlanningRepository } from '../infrastructure/in-memory/in-memory-planning.repository';
 import { SyncPlanningFromGoogle } from './use-cases/sync-planning-from-google';
+import { RetrieveFuturePlanningEntries } from './use-cases/retrieve-future-planning-entries';
 
 let firebaseError = false;
 try {
@@ -44,6 +45,7 @@ export class App {
 	warnAbsence: WarnAbsence;
 	private remindAbsences: RemindAbsences;
 	private discordService: DiscordService;
+	readonly retrieveFuturePlanningEntries: RetrieveFuturePlanningEntries;
 	readonly retrieveAbsencesOfTheDay: RetrieveAbsencesOfTheDay;
 	readonly retrieveAbsencesOfUser: RetrieveAbsencesOfUser;
 	readonly deleteAbsence: DeleteAbsence;
@@ -61,6 +63,7 @@ export class App {
 		this.discordService = new DiscordService(this.discord);
 		this.warnAbsence = new WarnAbsence(this.discordService, this.absenceRepo);
 		this.remindAbsences = new RemindAbsences(this.discordService);
+		this.retrieveFuturePlanningEntries = new RetrieveFuturePlanningEntries(this.planningRepo, this.discordService);
 
 		this.retrieveAbsencesOfTheDay = new RetrieveAbsencesOfTheDay(this.absenceRepo, this.discordService);
 		this.retrieveAbsencesOfUser = new RetrieveAbsencesOfUser(this.absenceRepo, this.discordService);
