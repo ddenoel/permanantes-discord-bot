@@ -4,7 +4,7 @@ import { command as absenceCommand } from './commands/absence';
 import { command as getAbsencesCommand } from './commands/get-absences-of-the-day';
 import { command as getMyAbsencesCommand } from './commands/get-my-absences';
 import { command as deleteAbsenceCommand } from './commands/delete-absence';
-import { command as newBirthdayCommand } from './birthday/new-birthday';
+import { command as newBirthdayCommand } from './commands/birthday/new-birthday';
 
 config();
 

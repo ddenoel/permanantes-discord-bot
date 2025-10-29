@@ -17,4 +17,10 @@ export class InMemoryBirthdayRepository implements BirthdayRepository {
 		const idx = birthdays.findIndex((b) => b.id === birthday.id);
 		if (idx !== -1) birthdays[idx] = birthday;
 	}
+
+	async findByDayAndGuild(month: number, day: number, guildId: string): Promise<Birthday[]> {
+		return birthdays.filter(
+			(b) => b.discordInfo.guildId === guildId && b.birthdayDate.month === month && b.birthdayDate.day === day
+		);
+	}
 }

@@ -12,7 +12,7 @@ import { command as absenceCommand } from './commands/commands/absence';
 import { command as getAbsencesCommand } from './commands/commands/get-absences-of-the-day';
 import { command as getMyAbsencesCommand } from './commands/commands/get-my-absences';
 import { command as deleteAbsenceCommand } from './commands/commands/delete-absence';
-import { command as newBirthdayCommand } from './commands/birthday/new-birthday';
+import { command as newBirthdayCommand } from './commands/commands/birthday/new-birthday';
 import { Command } from './commands/command.model';
 import { createThreadOnPost } from './automations';
 import { deployCommands } from './commands/deploy-commands';

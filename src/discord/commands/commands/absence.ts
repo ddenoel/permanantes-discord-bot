@@ -20,8 +20,8 @@ import { DateUtils } from '../../../app/domain/utils/dates.utils';
 import { IPlanningEntryEntity } from '../../../app/domain/entities/planning.entity';
 import { MiscellaneousUtils } from '../../../app/domain/utils/miscellaneous.utils';
 import { monthEmojiByIndex } from '../../../app/domain/data/dates.data';
-import { verifyRole } from './shared/verify-role';
-import { getPlanningEntriesAsSelect } from './shared/get-planning-entries-as-select';
+import { verifyRole } from '../shared/verify-role';
+import { getPlanningEntriesAsSelect } from '../shared/get-planning-entries-as-select';
 
 const data = new SlashCommandBuilder();
 

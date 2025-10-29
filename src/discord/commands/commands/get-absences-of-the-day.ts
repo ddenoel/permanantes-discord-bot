@@ -7,8 +7,8 @@ import {
 } from 'discord.js';
 import { Command } from '../command.model';
 import { App } from '../../../app';
-import { verifyRole } from './shared/verify-role';
-import { getPlanningEntriesAsSelect } from './shared/get-planning-entries-as-select';
+import { verifyRole } from '../shared/verify-role';
+import { getPlanningEntriesAsSelect } from '../shared/get-planning-entries-as-select';
 
 const data = new SlashCommandBuilder();
 

@@ -11,11 +11,11 @@ import {
 	TextInputBuilder,
 	TextInputStyle,
 } from 'discord.js';
-import { Command } from '../command.model';
-import { verifyRole } from '../commands/shared/verify-role';
-import { App } from '../../../app';
-import { DateUtils } from '../../../app/domain/utils/dates.utils';
-import { MemberUtils } from '../commands/shared/member-utils';
+import { Command } from '../../command.model';
+import { verifyRole } from '../../shared/verify-role';
+import { App } from '../../../../app';
+import { DateUtils } from '../../../../app/domain/utils/dates.utils';
+import { MemberUtils } from '../../shared/member-utils';
 
 const data = new SlashCommandBuilder();
 data.setName('nouvel_anniversaire').setDescription("Enregistrer la date d'anniversaire d'un membre");

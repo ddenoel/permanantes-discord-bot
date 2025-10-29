@@ -30,4 +30,31 @@ export class DiscordService {
 		}
 		return channel;
 	}
+
+	async getBirthdayChannel() {
+		const channelId = process.env.BIRTHDAY_CHANNEL_ID;
+		if (!channelId) {
+			throw new Error('[DiscordService] Configuration error: BIRTHDAY_CHANNEL_ID not set in environment variables');
+		}
+
+		const channel = await this.client.channels.fetch(channelId);
+		if (!channel) {
+			throw new Error(`[DiscordService] Channel not found: Channel ID ${channelId} does not exist`);
+		}
+
+		return channel;
+	}
+
+	async memberHasAnyRole(memberId: string, rolesCsv?: string): Promise<boolean> {
+		const allowed = (rolesCsv || '')
+			.split(',')
+			.map((s) => s.trim())
+			.filter(Boolean);
+		if (!allowed.length) return true;
+		const guild = this.client.guilds.cache.get(this.guildId);
+		if (!guild) return false;
+		const member = await guild.members.fetch(memberId).catch(() => null);
+		if (!member) return false;
+		return allowed.some((id) => member.roles.cache.has(id));
+	}
 }

@@ -68,8 +68,8 @@ export class App {
 	readonly birthday: BirthdayApp;
 
 	constructor(private discord: Client) {
-		this.birthday = new BirthdayApp(firebaseError, this.discordService);
 		this.discordService = new DiscordService(this.discord);
+		this.birthday = new BirthdayApp(firebaseError, this.discordService);
 		this.warnAbsence = new WarnAbsence(this.discordService, this.absenceRepo);
 		this.remindAbsences = new RemindAbsences(this.discordService);
 		this.retrieveFuturePlanningEntries = new RetrieveFuturePlanningEntries(this.planningRepo, this.discordService);
@@ -158,5 +158,7 @@ export class App {
 				console.error('Error during planning sync (primary repo). Falling back to in-memory.', e);
 			}
 		});
+
+		this.birthday.scheduleTasks();
 	}
 }

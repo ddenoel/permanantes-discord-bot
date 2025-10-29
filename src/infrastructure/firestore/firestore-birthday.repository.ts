@@ -67,4 +67,14 @@ export class FirestoreBirthdayRepository implements BirthdayRepository {
 		const model = this.toPersistence(birthday);
 		await this.ormRepo.update(model);
 	}
+
+	async findByDayAndGuild(month: number, day: number, guildId: string): Promise<Birthday[]> {
+		const snapshot = await this.firestore
+			.collection('birthday')
+			.where('discordInfo.guildId', '==', guildId)
+			.where('birthdayDate.month', '==', month)
+			.where('birthdayDate.day', '==', day)
+			.get();
+		return snapshot.docs.map((doc) => this.documentDataToDomain(doc.data()));
+	}
 }

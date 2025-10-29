@@ -6,9 +6,9 @@ import {
 	StringSelectMenuBuilder,
 	StringSelectMenuOptionBuilder,
 } from 'discord.js';
-import { IPlanningEntryEntity } from '../../../../app/domain/entities/planning.entity';
-import { DateUtils } from '../../../../app/domain/utils/dates.utils';
-import { monthEmojiByIndex } from '../../../../app/domain/data/dates.data';
+import { IPlanningEntryEntity } from '../../../app/domain/entities/planning.entity';
+import { DateUtils } from '../../../app/domain/utils/dates.utils';
+import { monthEmojiByIndex } from '../../../app/domain/data/dates.data';
 
 export type PlanningSelectOptions = {
 	customIds: { select: string; prev: string; next: string };
