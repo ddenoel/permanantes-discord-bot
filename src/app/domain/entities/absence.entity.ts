@@ -1,10 +1,8 @@
+import { DiscordMember } from './discord-member.entity';
+
 export interface IDiscordInfo {
 	guildId: string;
-	member: {
-		id: string;
-		displayName?: string;
-		username?: string;
-	};
+	member: DiscordMember;
 	messageId?: string;
 }
 

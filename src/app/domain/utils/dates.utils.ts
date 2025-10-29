@@ -40,6 +40,21 @@ export class DateUtils {
 		return `les ${formattedDates.slice(0, -1).join(', ')} et ${formattedDates.slice(-1)}`;
 	}
 
+	static formatDayMonth(day: number, month: number): string {
+		try {
+			const d = new Date(2000, month - 1, day);
+			return format(d, 'd MMMM', { locale: fr });
+		} catch {
+			return `${String(day).padStart(2, '0')}/${String(month).padStart(2, '0')}`;
+		}
+	}
+
+	static getMaxDayForMonth(month: number): number {
+		if (month === 2) return 28; // voluntary choice to not handle leap years
+		if (month === 4 || month === 6 || month === 9 || month === 11) return 30;
+		return 31;
+	}
+
 	static getMonthNumberFromFrenchName(month: string): number {
 		if (!month) {
 			return null;

@@ -20,9 +20,22 @@ L'application est en architecture hexagonale composée de 3 couches :
 
 De manière générale, dès qu'un appel est fait à un service ou outil externe, un port sera créé dans la partie domain et une implémentation dans la partie infrastructure. 
 
-# Règles de développement
-De manière générale, les fichiers seront nommés en anglais.
-Les contenus textuels seront en français.
+# Langage
+De manière générale, les fichiers seront nommés en anglais, ainsi que les variables, les fonctions, les classes, les interfaces, les types, commentaires, etc.
+Les contenus textuels visibles par l'utilisateur (messages, commandes, etc.) seront en français.
+Dès que cela semble pertinent pour le sens des émojis seront ajoutés pour les messages utilisateurs. 
+Le ton sera plutôt humoristique et amical.
+
+# Développement
+- On évitera de créer des fonctions volantes sans contexte, on privilégiera la création de services sous forme de classes pour encapsuler la logique
+
+Exemple : 
+```
+class MemberUtils {
+    static getDisplayName(member: GuildMember): string {...}
+}
+
+```
 
 # Règles précises diverses 
-- On utilisera pas directement date-fns mais le service DateUtils pour les manipulations de dates.
+- On n'utilisera pas directement date-fns mais le service DateUtils pour les manipulations de dates.

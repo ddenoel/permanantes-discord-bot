@@ -1,17 +1,31 @@
-import { ChatInputCommandInteraction } from 'discord.js';
+import { ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 
-export async function verifyRole(interaction: ChatInputCommandInteraction) {
-	const allowedRoleId = process.env.ABSENCE_ALLOWED_ROLE_ID;
-	if (allowedRoleId) {
-		const member = await interaction.guild.members.fetch(interaction.user.id);
-		if (!member.roles.cache.has(allowedRoleId)) {
-			const role = interaction.guild.roles.cache.get(allowedRoleId);
-			await interaction.editReply({
-				content: `Vous n'avez pas le rôle ${role ? `<@&${role.id}>` : ''} requis pour utiliser cette commande.`,
-			});
+export async function verifyRole(interaction: ChatInputCommandInteraction, rolesCsv?: string, memberId?: string) {
+	const allowedRoles = (rolesCsv || '')
+		.split(',')
+		.map((s) => s.trim())
+		.filter(Boolean);
 
-			return false;
+	if (!allowedRoles.length) return true;
+
+	const member = await interaction.guild.members.fetch(memberId || interaction.user.id);
+	const ok = allowedRoles.some((roleId) => member.roles.cache.has(roleId));
+	if (!ok) {
+		const mentions = allowedRoles
+			.map((id) => interaction.guild.roles.cache.get(id))
+			.filter(Boolean)
+			.map((role) => `<@&${(role as any).id}>`)
+			.join(', ');
+		const content = `${memberId ? `<@${memberId}> n'a pas` : "Vous n'avez"} pas ${
+			allowedRoles?.length > 1 ? 'les rôles' : 'le rôle'
+		} ${mentions || ''} requis pour utiliser cette commande.`;
+		if (interaction.deferred || interaction.replied) {
+			await interaction.editReply({ content });
+		} else {
+			await interaction.reply({ content, flags: MessageFlags.Ephemeral });
 		}
+		return false;
 	}
+
 	return true;
 }

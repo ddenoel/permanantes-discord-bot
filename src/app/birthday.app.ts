@@ -1,0 +1,26 @@
+import { FirestoreBirthdayRepository } from '../infrastructure/firestore/firestore-birthday.repository';
+import { InMemoryBirthdayRepository } from '../infrastructure/in-memory/in-memory-birthday.repository';
+import { BirthdayRepository } from './domain/repositories/birthday.repository';
+import { DiscordService } from './domain/services/discord.service';
+import { CreateBirthday } from './use-cases/birthday/create-birthday';
+import { RetrieveBirthdayByMember } from './use-cases/birthday/retrieve-birthday-by-member';
+import { UpdateBirthdayDate } from './use-cases/birthday/update-birthday-date';
+
+export class BirthdayApp {
+	private birthdayRepo: BirthdayRepository;
+
+	readonly createBirthday: CreateBirthday;
+	readonly retrieveBirthdayByMember: RetrieveBirthdayByMember;
+	readonly updateBirthdayDate: UpdateBirthdayDate;
+
+	constructor(
+		private readonly firebaseError: boolean,
+		discordService: DiscordService
+	) {
+		this.birthdayRepo = this.firebaseError ? new InMemoryBirthdayRepository() : new FirestoreBirthdayRepository();
+
+		this.createBirthday = new CreateBirthday(this.birthdayRepo, discordService);
+		this.retrieveBirthdayByMember = new RetrieveBirthdayByMember(this.birthdayRepo, discordService);
+		this.updateBirthdayDate = new UpdateBirthdayDate(this.birthdayRepo, discordService);
+	}
+}

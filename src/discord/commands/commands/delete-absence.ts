@@ -95,7 +95,6 @@ export const command: Command = {
 		}
 	},
 	handleCommandInteractions: async (interaction: Interaction) => {
-		console.log('handleCommandInteractions', interaction);
 		if (interaction.isStringSelectMenu() && interaction.customId === SELECT_ID) {
 			try {
 				const absenceId = interaction.values?.[0];

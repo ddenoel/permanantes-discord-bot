@@ -62,7 +62,7 @@ export const command: Command = {
 		await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
 		try {
-			const roleOk = await verifyRole(interaction);
+			const roleOk = await verifyRole(interaction, process.env.ABSENCE_ALLOWED_ROLE_ID);
 			if (!roleOk) return;
 
 			const app = new App(interaction.client);
