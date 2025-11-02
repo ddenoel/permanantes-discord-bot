@@ -9,6 +9,7 @@ import {
 import { IPlanningEntryEntity } from '../../../app/domain/entities/planning.entity';
 import { DateUtils } from '../../../app/domain/utils/dates.utils';
 import { monthEmojiByIndex } from '../../../app/domain/data/dates.data';
+import { MiscellaneousUtils } from '../../../app/domain/utils/miscellaneous.utils';
 
 export type PlanningSelectOptions = {
 	customIds: { select: string; prev: string; next: string };
@@ -38,12 +39,23 @@ export function getPlanningEntriesAsSelect(
 			let labelBase = `${DateUtils.formatDateWithWeekday(date)}`;
 			if (DateUtils.isSameDay(date, new Date())) labelBase = `Aujourd'hui (${labelBase})`;
 			const already = disabledIsoValues.has(iso);
-			const description =
-				(e.what ? `Thème : ${e.what}` : '') + (already ? ' (Vous êtes déjà absent ce jour)' : '') || '\u200B';
+			const alreadyAbsentMessage = '(Vous êtes déjà absent ce jour)';
+			const DISCORD_MAX_CHARS_DESCRIPTION = 99;
+			const maxCharsDescription = already
+				? DISCORD_MAX_CHARS_DESCRIPTION - alreadyAbsentMessage.length - 3
+				: DISCORD_MAX_CHARS_DESCRIPTION - 3;
+			const baseDescription = e.what ? `Thème : ${e.what}` : '\u200B';
+			const trimmedDescription = MiscellaneousUtils.truncateString(baseDescription, maxCharsDescription);
+			const description = trimmedDescription + (already ? alreadyAbsentMessage : '');
+			// Final safety clamp: Discord enforces option descriptions <= 100 chars
+			const finalDescription =
+				description.length > DISCORD_MAX_CHARS_DESCRIPTION
+					? MiscellaneousUtils.truncateString(description, DISCORD_MAX_CHARS_DESCRIPTION - 3)
+					: description;
 			return new StringSelectMenuOptionBuilder()
 				.setLabel(labelBase)
 				.setEmoji(already ? '❌' : emoji)
-				.setDescription(description)
+				.setDescription(finalDescription)
 				.setValue(iso);
 		});
 
