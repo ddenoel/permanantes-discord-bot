@@ -1,5 +1,4 @@
 import { Client } from 'discord.js';
-import { Absence } from '../entities/absence.entity';
 
 import { config } from 'dotenv';
 
@@ -35,6 +34,48 @@ export class DiscordService {
 		const channelId = process.env.BIRTHDAY_CHANNEL_ID;
 		if (!channelId) {
 			throw new Error('[DiscordService] Configuration error: BIRTHDAY_CHANNEL_ID not set in environment variables');
+		}
+
+		const channel = await this.client.channels.fetch(channelId);
+		if (!channel) {
+			throw new Error(`[DiscordService] Channel not found: Channel ID ${channelId} does not exist`);
+		}
+
+		return channel;
+	}
+
+	async getMaterialChannel() {
+		const channelId = process.env.MATERIAL_CHANNEL_ID;
+		if (!channelId) {
+			throw new Error('[DiscordService] Configuration error: MATERIAL_CHANNEL_ID not set in environment variables');
+		}
+
+		const channel = await this.client.channels.fetch(channelId);
+		if (!channel) {
+			throw new Error(`[DiscordService] Channel not found: Channel ID ${channelId} does not exist`);
+		}
+
+		return channel;
+	}
+
+	async getQuestionsChannel() {
+		const channelId = process.env.QUESTIONS_CHANNEL_ID;
+		if (!channelId) {
+			throw new Error('[DiscordService] Configuration error: QUESTIONS_CHANNEL_ID not set in environment variables');
+		}
+
+		const channel = await this.client.channels.fetch(channelId);
+		if (!channel) {
+			throw new Error(`[DiscordService] Channel not found: Channel ID ${channelId} does not exist`);
+		}
+
+		return channel;
+	}
+
+	async getInformChannel() {
+		const channelId = process.env.INFORM_CHANNEL_ID;
+		if (!channelId) {
+			throw new Error('[DiscordService] Configuration error: INFORM_CHANNEL_ID not set in environment variables');
 		}
 
 		const channel = await this.client.channels.fetch(channelId);

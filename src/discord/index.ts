@@ -14,8 +14,9 @@ import { command as getMyAbsencesCommand } from './commands/commands/get-my-abse
 import { command as deleteAbsenceCommand } from './commands/commands/delete-absence';
 import { command as newBirthdayCommand } from './commands/commands/birthday/new-birthday';
 import { Command } from './commands/command.model';
-import { createThreadOnPost } from './automations';
 import { deployCommands } from './commands/deploy-commands';
+import { KeepMaterialThreadsActive } from './automations/keep-material-threads-active';
+import { CreateQuestionThreadOnRessourcePost } from './automations';
 
 export default async function startDiscord() {
 	// Load environment variables
@@ -35,7 +36,8 @@ export default async function startDiscord() {
 	commands.set(newBirthdayCommand.data.name, newBirthdayCommand);
 
 	// Set up automations
-	createThreadOnPost(client);
+	new CreateQuestionThreadOnRessourcePost(client).automate();
+	new KeepMaterialThreadsActive(client).automate();
 
 	client.once(Events.ClientReady, (readyClient) => {
 		console.log(`Ready! Logged in as ${readyClient.user.tag}`);

@@ -22,13 +22,8 @@ import { FirestorePlanningRepository } from '../infrastructure/firestore/firesto
 import { InMemoryPlanningRepository } from '../infrastructure/in-memory/in-memory-planning.repository';
 import { SyncPlanningFromGoogle } from './use-cases/sync-planning-from-google';
 import { RetrieveFuturePlanningEntries } from './use-cases/retrieve-future-planning-entries';
-import { BirthdayRepository } from './domain/repositories/birthday.repository';
-import { FirestoreBirthdayRepository } from '../infrastructure/firestore/firestore-birthday.repository';
-import { InMemoryBirthdayRepository } from '../infrastructure/in-memory/in-memory-birthday.repository';
-import { CreateBirthday, CreateBirthdayPayload } from './use-cases/birthday/create-birthday';
-import { RetrieveBirthdayByMember } from './use-cases/birthday/retrieve-birthday-by-member';
-import { UpdateBirthdayDate } from './use-cases/birthday/update-birthday-date';
 import { BirthdayApp } from './birthday.app';
+import { KeepMaterialThreadsActive } from '../discord/automations/keep-material-threads-active';
 
 let firebaseError = false;
 try {
