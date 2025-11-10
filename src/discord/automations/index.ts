@@ -1,1 +1,1 @@
-export * from './createThreadOnPost';
+export * from './create-thread-on-post';
