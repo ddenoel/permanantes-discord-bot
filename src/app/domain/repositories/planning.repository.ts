@@ -7,6 +7,11 @@ export interface PlanningRepository {
 	findNotSyncedOnForGuild(guildId: string, syncKey?: string): Promise<IPlanningEntryEntity[]>;
 
 	/**
+	 * Returns all planning entries for the given guild.
+	 */
+	findAllForGuild(guildId: string): Promise<IPlanningEntryEntity[]>;
+
+	/**
 	 * Creates or updates an entry identified by its date (day-level).
 	 */
 	upsertByDateAndGuild(entry: IPlanningEntryEntity): Promise<void>;

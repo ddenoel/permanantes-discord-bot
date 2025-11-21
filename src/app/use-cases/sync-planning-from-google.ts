@@ -2,6 +2,7 @@ import { PlanningRepository } from '../domain/repositories/planning.repository';
 import { IPlanningEntryEntity, PlanningEntry } from '../domain/entities/planning.entity';
 import { PlanningSheet } from '../../infrastructure/google/planning-sheet';
 import { AbsenceRepository } from '../domain/repositories/absence.repostiory';
+import { DateUtils } from '../domain/utils/dates.utils';
 
 export class SyncPlanningFromGoogle {
 	constructor(
@@ -10,27 +11,22 @@ export class SyncPlanningFromGoogle {
 		private readonly absenceRepo: AbsenceRepository
 	) {}
 
-	async execute(): Promise<{ createdOrUpdated: number; deleted: number; errors: number }> {
-		console.log('🚀 Sync Planning FromGoogle starting...');
-		const guildId = process.env.GUILD_ID;
-		const entries = await this.planningSheet.readFile();
+	private async buildSheetMap(guildId: string): Promise<{
+		byKey: Map<string, IPlanningEntryEntity>;
+		total: number;
+		errorsCount: number;
+		errorDates: Date[];
+	}> {
+		const input = await this.planningSheet.readFile();
 		const byKey = new Map<string, IPlanningEntryEntity>();
-		console.log('Entries found in Google Sheet:', entries.length);
 		let errorsCount = 0;
-		for (const item of entries) {
-			if (!item?.entry) {
-				continue;
-			}
+		const errorDates: Date[] = [];
+		for (const item of input) {
+			if (!item?.entry) continue;
 			try {
 				const sheetEntry = item.entry as any;
 				const base: Omit<IPlanningEntryEntity, 'id' | 'lastSyncKey'> = {
-					date: sheetEntry.date,
-					startDateTime: sheetEntry.startDateTime,
-					endDateTime: sheetEntry.endDateTime,
-					location: sheetEntry.location,
-					type: sheetEntry.type,
-					what: sheetEntry.what,
-					otherInfos: sheetEntry.otherInfos,
+					...sheetEntry,
 					absences: [],
 					discord: { guildId },
 					lastSyncAt: undefined,
@@ -39,14 +35,41 @@ export class SyncPlanningFromGoogle {
 				const absences = await this.absenceRepo.findByDateAndGuild(base.date, guildId);
 				const entity = new PlanningEntry({ ...base, absences });
 				byKey.set(entity.id, entity.toInterface());
-			} catch (error) {
+			} catch {
 				errorsCount++;
-				console.error(`Error processing entry at column ${item.col} ${JSON.stringify(item.entry)}:`, error);
+				const maybeDate: Date = (item.entry as any)?.date;
+				if (maybeDate instanceof Date) errorDates.push(maybeDate);
 			}
 		}
+		return { byKey, total: input.length, errorsCount, errorDates };
+	}
 
-		const existingNotSynced = await this.planningRepo.findNotSyncedOnForGuild(guildId);
-		const existingKeys = new Set(existingNotSynced.map((e) => PlanningEntry.computeId(e.date, guildId)));
+	private entriesAreEqual(a: IPlanningEntryEntity, b: IPlanningEntryEntity): boolean {
+		if (!a || !b) return false;
+		const sameDate = DateUtils.isSameDay(a.date, b.date);
+		return (
+			sameDate &&
+			(a.startDateTime ? a.startDateTime.getTime() : null) === (b.startDateTime ? b.startDateTime.getTime() : null) &&
+			(a.endDateTime ? a.endDateTime.getTime() : null) === (b.endDateTime ? b.endDateTime.getTime() : null) &&
+			(a.location?.name || '').trim() === (b.location?.name || '').trim() &&
+			(a.type || '') === (b.type || '') &&
+			(a.project || '') === (b.project || '') &&
+			(a.what || '').trim() === (b.what || '').trim() &&
+			(a.otherInfos || '').trim() === (b.otherInfos || '').trim() &&
+			(a.seanceType || '').trim().toLowerCase() === (b.seanceType || '').trim().toLowerCase()
+		);
+	}
+
+	private async syncSimple(
+		guildId: string,
+		force: boolean
+	): Promise<{ createdOrUpdated: number; deleted: number; errors: number }> {
+		const { byKey, errorsCount } = await this.buildSheetMap(guildId);
+
+		const existing = force
+			? await this.planningRepo.findAllForGuild(guildId)
+			: await this.planningRepo.findNotSyncedOnForGuild(guildId);
+		const existingKeys = new Set(existing.map((e) => PlanningEntry.computeId(e.date, guildId)));
 
 		let createdOrUpdated = 0;
 		for (const [key, entry] of byKey.entries()) {
@@ -62,7 +85,121 @@ export class SyncPlanningFromGoogle {
 			deleted++;
 		}
 
-		console.log(`Planning synced : ${createdOrUpdated} upserts, ${deleted} deletions, ${errorsCount} errors`);
 		return { createdOrUpdated, deleted, errors: errorsCount };
+	}
+
+	private async syncWithProgress(
+		guildId: string,
+		force: boolean,
+		onProgress?: (evt: {
+			stage: string;
+			message: string;
+			processed?: number;
+			total?: number;
+			percent?: number;
+		}) => void | Promise<void>
+	): Promise<{
+		createdOrUpdated: number;
+		deleted: number;
+		errors: number;
+		details: {
+			created: Date[];
+			modified: Date[];
+			identical: number;
+			deleted: Date[];
+			errors: Date[];
+		};
+	}> {
+		try {
+			const fileName = await this.planningSheet.getFileName();
+			if (onProgress) await onProgress({ stage: 'reading_file', message: `📖 Lecture du fichier _"${fileName}"_...` });
+			const { byKey, total, errorsCount, errorDates } = await this.buildSheetMap(guildId);
+			if (onProgress)
+				await onProgress({ stage: 'entries_found', message: `📄 ${total} entrées trouvées dans le fichier`, total });
+
+			const existing = force
+				? await this.planningRepo.findAllForGuild(guildId)
+				: await this.planningRepo.findNotSyncedOnForGuild(guildId);
+			const existingByKey = new Map(existing.map((e) => [PlanningEntry.computeId(e.date, guildId), e]));
+
+			const createdDates: Date[] = [];
+			const modifiedDates: Date[] = [];
+			let identicalCount = 0;
+			const deletedDates: Date[] = [];
+
+			let processed = 0;
+			let lastPercent = -1;
+			for (const [key, entry] of byKey.entries()) {
+				const existingEntry = existingByKey.get(key);
+				if (!existingEntry) {
+					await this.planningRepo.upsertByDateAndGuild(entry);
+					createdDates.push(entry.date);
+				} else if (!this.entriesAreEqual(entry, existingEntry)) {
+					await this.planningRepo.upsertByDateAndGuild(entry);
+					modifiedDates.push(entry.date);
+				} else {
+					identicalCount++;
+				}
+				existingByKey.delete(key);
+				processed++;
+				const percent = Math.floor((processed / Math.max(total, 1)) * 100);
+				if (percent !== lastPercent && onProgress) {
+					lastPercent = percent;
+					await onProgress({
+						stage: 'sync_progress',
+						message: `🔄 Synchronisation ${percent}% (${processed}/${total})`,
+						processed,
+						total,
+						percent,
+					});
+				}
+			}
+
+			for (const [remainingKey, remainingEntry] of existingByKey.entries()) {
+				const [y, m, d] = remainingKey.split('-').map((v) => parseInt(v, 10));
+				await this.planningRepo.deleteByDateAndGuild(new Date(y, m - 1, d), guildId);
+				deletedDates.push(remainingEntry.date);
+			}
+
+			if (onProgress) await onProgress({ stage: 'done', message: '✅ Planning synchronisé !' });
+
+			return {
+				createdOrUpdated: createdDates.length + modifiedDates.length,
+				deleted: deletedDates.length,
+				errors: errorsCount,
+				details: {
+					created: createdDates,
+					modified: modifiedDates,
+					identical: identicalCount,
+					deleted: deletedDates,
+					errors: errorDates,
+				},
+			};
+		} catch (error) {
+			if (onProgress) await onProgress({ stage: 'error', message: '❌ Erreur lors de la synchronisation du planning' });
+			throw error;
+		}
+	}
+
+	async execute(
+		guildId?: string,
+		force: boolean = false,
+		withProgress: boolean = false,
+		onProgress?: (evt: {
+			stage: string;
+			message: string;
+			processed?: number;
+			total?: number;
+			percent?: number;
+		}) => void | Promise<void>
+	): Promise<{ createdOrUpdated: number; deleted: number; errors: number; details?: any }> {
+		guildId ??= process.env.GUILD_ID;
+		console.log('🚀 Sync Planning FromGoogle starting...');
+		if (withProgress) {
+			return this.syncWithProgress(guildId, force, onProgress);
+		}
+		const res = await this.syncSimple(guildId, force);
+		console.log(`Planning synced : ${res.createdOrUpdated} upserts, ${res.deleted} deletions, ${res.errors} errors`);
+		return res;
 	}
 }

@@ -1,5 +1,13 @@
 import { PlanningEventType, PlanningProject } from '../../../app/domain/entities/planning.entity';
 
+export type GoogleSheetSeanceType =
+	| 'Théâtre'
+	| 'Chant'
+	| 'Danse / Mise en corps'
+	| 'Répétition générale'
+	| 'A définir'
+	| 'Autre';
+
 export interface IGoogleSheetPlanningEntry {
 	column: string;
 	/** Month in French in full format (ex: "Septembre") */
@@ -13,6 +21,7 @@ export interface IGoogleSheetPlanningEntry {
 	absents: string;
 	other: string;
 	project: PlanningProject;
+	seanceType: GoogleSheetSeanceType;
 }
 
 export type IGoogleSheetPlanningEntryEntity = {
@@ -27,4 +36,5 @@ export type IGoogleSheetPlanningEntryEntity = {
 	absents: string[];
 	otherInfos?: string;
 	project: PlanningProject;
+	seanceType: GoogleSheetSeanceType;
 };

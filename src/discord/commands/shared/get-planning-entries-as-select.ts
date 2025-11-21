@@ -10,6 +10,7 @@ import { IPlanningEntryEntity } from '../../../app/domain/entities/planning.enti
 import { DateUtils } from '../../../app/domain/utils/dates.utils';
 import { monthEmojiByIndex } from '../../../app/domain/data/dates.data';
 import { MiscellaneousUtils } from '../../../app/domain/utils/miscellaneous.utils';
+import { ACTIVITY_TYPE_EMOJI } from '../../../app/domain/data/planning.data';
 
 export type PlanningSelectOptions = {
 	customIds: { select: string; prev: string; next: string };
@@ -34,7 +35,8 @@ export function getPlanningEntriesAsSelect(
 
 		const selectOptions = slice.map((e) => {
 			const date = e.date;
-			const emoji = monthEmojiByIndex[date.getMonth()] || '📅';
+			const activityTypeEmoji = e.seanceType ? ACTIVITY_TYPE_EMOJI[e.seanceType] : null;
+			const emoji = activityTypeEmoji || monthEmojiByIndex[date.getMonth()] || '📅';
 			const iso = date.toISOString();
 			let labelBase = `${DateUtils.formatDateWithWeekday(date)}`;
 			if (DateUtils.isSameDay(date, new Date())) labelBase = `Aujourd'hui (${labelBase})`;

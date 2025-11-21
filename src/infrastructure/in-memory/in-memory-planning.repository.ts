@@ -17,6 +17,12 @@ export class InMemoryPlanningRepository implements PlanningRepository {
 		);
 	}
 
+	async findAllForGuild(guildId: string): Promise<IPlanningEntryEntity[]> {
+		return Array.from(entriesByKey.values())
+			.filter((e) => e.discord?.guildId === guildId)
+			.sort((a, b) => a.date.getTime() - b.date.getTime());
+	}
+
 	async upsertByDateAndGuild(entry: IPlanningEntryEntity): Promise<void> {
 		const key = PlanningEntry.computeId(entry.date, entry.discord.guildId);
 		const stored: Stored = {

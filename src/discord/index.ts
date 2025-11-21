@@ -13,6 +13,7 @@ import { command as getAbsencesCommand } from './commands/commands/get-absences-
 import { command as getMyAbsencesCommand } from './commands/commands/get-my-absences';
 import { command as deleteAbsenceCommand } from './commands/commands/delete-absence';
 import { command as newBirthdayCommand } from './commands/commands/birthday/new-birthday';
+import { command as syncPlanningCommand } from './commands/commands/sync-planning';
 import { Command } from './commands/command.model';
 import { deployCommands } from './commands/deploy-commands';
 import { KeepMaterialThreadsActive } from './automations/keep-material-threads-active';
@@ -34,6 +35,7 @@ export default async function startDiscord() {
 	commands.set(getMyAbsencesCommand.data.name, getMyAbsencesCommand);
 	commands.set(deleteAbsenceCommand.data.name, deleteAbsenceCommand);
 	commands.set(newBirthdayCommand.data.name, newBirthdayCommand);
+	commands.set(syncPlanningCommand.data.name, syncPlanningCommand);
 
 	// Set up automations
 	new CreateQuestionThreadOnRessourcePost(client).automate();

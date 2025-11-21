@@ -37,6 +37,7 @@ export class FirestorePlanningRepository implements PlanningRepository {
 			lastSyncAt: model.lastSyncAt,
 			discord: model.discord,
 			project: model.project,
+			seanceType: model.seanceType,
 		};
 	}
 
@@ -58,6 +59,7 @@ export class FirestorePlanningRepository implements PlanningRepository {
 			lastSyncKey: entry.lastSyncKey,
 			discord: entry.discord,
 			project: entry.project,
+			seanceType: entry.seanceType,
 		};
 	}
 
@@ -93,6 +95,16 @@ export class FirestorePlanningRepository implements PlanningRepository {
 			.collection('planning')
 			.doc(id)
 			.set({ absenceIds: (admin.firestore as any).FieldValue.arrayUnion(absenceId) }, { merge: true });
+	}
+
+	async findAllForGuild(guildId: string): Promise<IPlanningEntryEntity[]> {
+		const snapshot = await this.firestore
+			.collection('planning')
+			.where('discord.guildId', '==', guildId)
+			.orderBy('date', 'asc')
+			.get();
+
+		return snapshot.docs.map((doc) => this.toDomain(doc.data() as any));
 	}
 
 	async findAllFuture(guildId: string, project?: PlanningProject): Promise<IPlanningEntryEntity[]> {

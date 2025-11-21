@@ -2,6 +2,14 @@ import { IAbsenceEntity } from './absence.entity';
 
 export type PlanningEventType = 'unknown' | 'rehearsal' | 'show' | 'workshop' | 'off';
 export type PlanningProject = 'atelier' | 'stage' | 'summer_school' | 'off' | 'cine_broadway' | 'other';
+export type ActivityType =
+	| 'theater'
+	| 'singing'
+	| 'dance'
+	| 'general_rehearsal'
+	| 'other'
+	| 'to_be_defined'
+	| 'unknown';
 
 export interface IPlanningDiscordInfo {
 	guildId: string;
@@ -23,6 +31,7 @@ export interface IPlanningEntryEntity {
 	lastSyncAt?: Date;
 	lastSyncKey: string;
 	discord: IPlanningDiscordInfo;
+	seanceType: ActivityType;
 }
 
 type PlanningEntryData = Omit<IPlanningEntryEntity, 'id' | 'lastSyncKey'> & Partial<IPlanningEntryEntity>;
@@ -43,6 +52,7 @@ export class PlanningEntry implements IPlanningEntryEntity {
 	otherInfos?: string;
 	lastSyncAt?: Date;
 	discord: IPlanningDiscordInfo;
+	seanceType: ActivityType;
 
 	constructor(planningEntry: PlanningEntryData) {
 		this.date = planningEntry.date;
@@ -56,6 +66,7 @@ export class PlanningEntry implements IPlanningEntryEntity {
 		this.lastSyncAt = planningEntry.lastSyncAt;
 		this.discord = planningEntry.discord;
 		this.project = planningEntry.project;
+		this.seanceType = planningEntry.seanceType;
 	}
 
 	static computeId(date: Date, guildId: string): string {
@@ -99,6 +110,7 @@ export class PlanningEntry implements IPlanningEntryEntity {
 			lastSyncAt: this.lastSyncAt ? new Date(this.lastSyncAt) : undefined,
 			lastSyncKey: this.lastSyncKey,
 			project: this.project,
+			seanceType: this.seanceType,
 		};
 	}
 

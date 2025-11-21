@@ -1,5 +1,6 @@
 import { Collection } from 'fireorm';
 import {
+	ActivityType,
 	IPlanningDiscordInfo,
 	IPlanningEntryEntity,
 	PlanningEventType,
@@ -36,4 +37,5 @@ export class PlanningModel implements Omit<IPlanningEntryEntity, 'absences'> {
 	lastSyncKey: string; // yyyy-MM-dd
 	project: PlanningProject;
 	discord: IPlanningDiscordInfo;
+	seanceType: ActivityType;
 }

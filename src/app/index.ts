@@ -23,7 +23,6 @@ import { InMemoryPlanningRepository } from '../infrastructure/in-memory/in-memor
 import { SyncPlanningFromGoogle } from './use-cases/sync-planning-from-google';
 import { RetrieveFuturePlanningEntries } from './use-cases/retrieve-future-planning-entries';
 import { BirthdayApp } from './birthday.app';
-import { KeepMaterialThreadsActive } from '../discord/automations/keep-material-threads-active';
 
 let firebaseError = false;
 try {
@@ -147,7 +146,7 @@ export class App {
 		cron.schedule('0 3 * * 2,5', async () => {
 			console.info('Syncing planning from Google Sheet');
 			try {
-				const res = await this.syncPlanning.execute();
+				const res = await this.syncPlanning.execute(undefined, false, true, ({ message }) => console.info(message));
 				console.info(`Planning sync done: ${res.createdOrUpdated} upserts, ${res.deleted} deletions`);
 			} catch (e) {
 				console.error('Error during planning sync (primary repo). Falling back to in-memory.', e);

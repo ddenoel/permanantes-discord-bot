@@ -29,6 +29,14 @@ export class GoogleService {
 		return sheetName;
 	}
 
+	async getFileName(spreadsheetId: string): Promise<string> {
+		const res = await this.sheets.spreadsheets.get({
+			spreadsheetId,
+		});
+
+		return res.data.properties?.title || '';
+	}
+
 	async connect() {
 		if (this.isInit) {
 			return;

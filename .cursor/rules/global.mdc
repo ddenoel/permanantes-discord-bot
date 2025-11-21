@@ -39,3 +39,4 @@ class MemberUtils {
 
 # Règles précises diverses 
 - On n'utilisera pas directement date-fns mais le service DateUtils pour les manipulations de dates.
+- Tu factoriseras au maximum le code 

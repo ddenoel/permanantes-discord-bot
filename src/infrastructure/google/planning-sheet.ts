@@ -1,8 +1,12 @@
 import { parse, setHours, setMinutes } from 'date-fns';
 import { DateUtils } from '../../app/domain/utils/dates.utils';
 import { GoogleService } from './google';
-import { IGoogleSheetPlanningEntry, IGoogleSheetPlanningEntryEntity } from './model/planning.model';
-import { IPlanningEntryEntity, PlanningEntry } from '../../app/domain/entities/planning.entity';
+import {
+	GoogleSheetSeanceType,
+	IGoogleSheetPlanningEntry,
+	IGoogleSheetPlanningEntryEntity,
+} from './model/planning.model';
+import { ActivityType, IPlanningEntryEntity, PlanningEntry } from '../../app/domain/entities/planning.entity';
 
 export class PlanningSheet {
 	private readonly fileId = process.env.GOOGLE_ABSENCES_FILE_ID;
@@ -20,6 +24,7 @@ export class PlanningSheet {
 		absents: 5,
 		other: 6,
 		project: 7,
+		seanceType: 8,
 	};
 	private indexRowMatcher = Object.fromEntries(
 		Object.entries(this.rowMatcher).map(([key, value]) => [value, key])
@@ -29,8 +34,33 @@ export class PlanningSheet {
 		this.getSheetName();
 	}
 
+	async getFileName(): Promise<string> {
+		return this.googleService.getFileName(this.fileId);
+	}
+
 	getLineIndexFor(prop: keyof IGoogleSheetPlanningEntry) {
 		return this.rowMatcher[prop];
+	}
+
+	private seanceTypeToActivityType(seanceType: GoogleSheetSeanceType): ActivityType {
+		if (!seanceType) return 'unknown';
+		switch (seanceType) {
+			case 'Théâtre':
+				return 'theater';
+			case 'Chant':
+				return 'singing';
+			case 'Danse / Mise en corps':
+				return 'dance';
+			case 'Répétition générale':
+				return 'general_rehearsal';
+			case 'A définir':
+				return 'to_be_defined';
+			case 'Autre':
+				return 'other';
+			default:
+				console.error('[PlanningSheet] Unknown seance type:', seanceType);
+				return 'unknown';
+		}
 	}
 
 	toDomain(entry: IGoogleSheetPlanningEntryEntity): IPlanningEntryEntity {
@@ -48,6 +78,8 @@ export class PlanningSheet {
 			})),
 			discord: { guildId },
 			project: PlanningEntry.parseProject(entry.project),
+			// TODO: actually in the sheet we can have multiple values for the seance type, we need to handle this
+			seanceType: this.seanceTypeToActivityType(entry.seanceType),
 		});
 	}
 
@@ -101,6 +133,7 @@ export class PlanningSheet {
 						absents: null,
 						other: null,
 						project: 'other',
+						seanceType: null,
 					};
 					objs[colIndex - 1] = obj;
 				}
@@ -196,6 +229,7 @@ export class PlanningSheet {
 			absents,
 			otherInfos: entry.other,
 			project: PlanningEntry.parseProject(entry.project),
+			seanceType: entry.seanceType,
 		};
 	}
 }
