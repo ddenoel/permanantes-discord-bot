@@ -29,8 +29,8 @@ export class BirthdayApp {
 	}
 
 	scheduleTasks() {
-		// Schedule birthdays at 10:00(+2h) everyday
-		cron.schedule('0 10 * * *', async () => {
+		// Schedule birthdays at 8:00(+2h) everyday
+		cron.schedule('0 8 * * *', async () => {
 			console.info('Checking birthdays of the day');
 			try {
 				await this.warnBirthday.execute();
