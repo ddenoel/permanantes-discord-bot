@@ -15,15 +15,18 @@ export class WarnAbsence {
 		private readonly repo?: AbsenceRepository
 	) {}
 
-	async execute(absences: Absence[]) {
+	/**
+	 * Returns true if a message has been sent
+	 */
+	async execute(absences: Absence[]): Promise<boolean> {
 		if (!absences?.length) {
-			return;
+			return false;
 		}
 
 		const todayAbsences = absences.filter((absence) => DateUtils.isSameDay(absence.absenceDate, new Date()));
 
 		if (todayAbsences.length === 0) {
-			return;
+			return false;
 		}
 
 		const absenceChannel = await this.discordService.getAbsenceChannel();
@@ -52,7 +55,7 @@ export class WarnAbsence {
 				throw new Error('[Warn absence] Failed to send message');
 			});
 
-		if (!message) return;
+		if (!message) return true;
 
 		const threadDate = format(absence.absenceDate, 'dd/MM/yyyy');
 
@@ -81,5 +84,7 @@ export class WarnAbsence {
 				});
 			}
 		}
+
+		return true;
 	}
 }

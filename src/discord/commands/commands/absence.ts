@@ -339,9 +339,10 @@ async function handleConfirm(interaction: Interaction) {
 			return;
 		}
 
+		let hasBeenWarned = false;
 		try {
 			if (absence) {
-				await new App(interaction.client).warnAbsence.execute([absence]);
+				hasBeenWarned = await new App(interaction.client).warnAbsence.execute([absence]);
 			}
 		} catch (e) {
 			console.error('[Absence Command] Error warning absence:', e);
@@ -349,7 +350,11 @@ async function handleConfirm(interaction: Interaction) {
 
 		pendingAbsenceByUser.delete(userId);
 		const root = lastSelectInteractionByUser.get(userId) as any;
-		const content = `✅ Merci ! Votre absence pour le **${DateUtils.formatDateWithWeekday(data.date)}** a bien été enregistrée !`;
+		let content = `✅ Merci ! Votre absence pour le **${DateUtils.formatDateWithWeekday(data.date)}** a bien été enregistrée !`;
+		if (!hasBeenWarned) {
+			content += '\n\n Un message sera envoyé pour prévenir de votre absence le jour J à 9h.';
+		}
+
 		if (root && root.editReply) {
 			await root.editReply({ content, components: [] });
 		} else {
