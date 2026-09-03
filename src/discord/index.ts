@@ -17,7 +17,7 @@ import { command as syncPlanningCommand } from './commands/commands/sync-plannin
 import { Command } from './commands/command.model';
 import { deployCommands } from './commands/deploy-commands';
 import { KeepMaterialThreadsActive } from './automations/keep-material-threads-active';
-import { CreateQuestionThreadOnRessourcePost } from './automations';
+import { WarnOnRessourcePost } from './automations';
 
 export default async function startDiscord() {
 	// Load environment variables
@@ -38,7 +38,7 @@ export default async function startDiscord() {
 	commands.set(syncPlanningCommand.data.name, syncPlanningCommand);
 
 	// Set up automations
-	new CreateQuestionThreadOnRessourcePost(client).automate();
+	new WarnOnRessourcePost(client).automate();
 	new KeepMaterialThreadsActive(client).automate();
 
 	client.once(Events.ClientReady, (readyClient) => {

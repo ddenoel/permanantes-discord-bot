@@ -58,20 +58,6 @@ export class DiscordService {
 		return channel;
 	}
 
-	async getQuestionsChannel() {
-		const channelId = process.env.QUESTIONS_CHANNEL_ID;
-		if (!channelId) {
-			throw new Error('[DiscordService] Configuration error: QUESTIONS_CHANNEL_ID not set in environment variables');
-		}
-
-		const channel = await this.client.channels.fetch(channelId);
-		if (!channel) {
-			throw new Error(`[DiscordService] Channel not found: Channel ID ${channelId} does not exist`);
-		}
-
-		return channel;
-	}
-
 	async getInformChannel() {
 		const channelId = process.env.INFORM_CHANNEL_ID;
 		if (!channelId) {
