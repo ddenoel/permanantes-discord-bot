@@ -20,6 +20,7 @@ export class GoogleService {
 	static UNFORMATTED_DATE_FORMAT = 'yyyy-MM-dd';
 
 	private isInit = false;
+	private connectPromise: Promise<void> | null = null;
 
 	private formatSheetName(sheetName: string): string {
 		if (/[\s\-\(\)\[\]{}]/.test(sheetName)) {
@@ -28,7 +29,43 @@ export class GoogleService {
 		return sheetName;
 	}
 
+	private parseServiceAccountCredentials(): Record<string, any> {
+		if (!process.env.GOOGLE_SERVICE_ACCOUNT) {
+			throw new Error('GOOGLE_SERVICE_ACCOUNT is not defined');
+		}
+
+		let credentials: Record<string, any>;
+		try {
+			credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT);
+		} catch (e) {
+			throw new Error('GOOGLE_SERVICE_ACCOUNT is not valid JSON');
+		}
+
+		if (!credentials.client_email || !credentials.private_key) {
+			throw new Error('GOOGLE_SERVICE_ACCOUNT must include client_email and private_key');
+		}
+
+		// Render/env vars often keep literal "\n" instead of real newlines in private_key
+		if (typeof credentials.private_key === 'string') {
+			credentials.private_key = credentials.private_key.replace(/\\n/g, '\n');
+		}
+
+		return credentials;
+	}
+
+	async ensureConnected(): Promise<void> {
+		if (this.isInit) return;
+		if (!this.connectPromise) {
+			this.connectPromise = this.connect().catch((e) => {
+				this.connectPromise = null;
+				throw e;
+			});
+		}
+		await this.connectPromise;
+	}
+
 	async getFileName(spreadsheetId: string): Promise<string> {
+		await this.ensureConnected();
 		const res = await this.sheets.spreadsheets.get({
 			spreadsheetId,
 		});
@@ -40,23 +77,28 @@ export class GoogleService {
 		if (this.isInit) {
 			return;
 		}
-		if (!process.env.GOOGLE_SERVICE_ACCOUNT) {
-			throw new Error('GOOGLE_SERVICE_ACCOUNT is not defined');
-		}
-		const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT);
+
+		const credentials = this.parseServiceAccountCredentials();
 		const auth = new google.auth.GoogleAuth({
 			credentials,
 			scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 		});
 
+		// Force token acquisition early to fail fast with a clearer error
+		await auth.getClient();
+
 		// Cast avoids TS conflict when multiple google-auth-library copies are nested by googleapis
 		this.sheets = google.sheets({ version: 'v4', auth: auth as any });
 		this.isInit = true;
-		console.log('🚀 Connected to Google');
+		console.log(`🚀 Connected to Google as ${credentials.client_email}`);
 	}
 
 	constructor() {
-		this.connect();
+		this.connectPromise = this.connect().catch((e) => {
+			this.connectPromise = null;
+			console.error('[GoogleService] Failed to connect:', e);
+			throw e;
+		});
 	}
 
 	async appendRow(
@@ -64,10 +106,7 @@ export class GoogleService {
 		range: string, // e.g. 'Feuille1!A1'
 		values: (string | number)[]
 	): Promise<void> {
-		if (!this.isInit) {
-			console.error('GoogleService is not initialized');
-			return null;
-		}
+		await this.ensureConnected();
 		await this.sheets.spreadsheets.values.append({
 			spreadsheetId,
 			range,
@@ -84,10 +123,7 @@ export class GoogleService {
 		column,
 		value,
 	}: FindRowOptions): Promise<{ rowNumber: number; rowData: string[] } | null> {
-		if (!this.isInit) {
-			console.error('GoogleService is not initialized');
-			return null;
-		}
+		await this.ensureConnected();
 		const range = `${this.formatSheetName(sheetName)}!${column}:${column}`;
 
 		const res = await this.sheets.spreadsheets.values.get({
@@ -117,6 +153,7 @@ export class GoogleService {
 		limitColumns: number = 1000,
 		limitRows: number = 1000
 	): Promise<string[][]> {
+		await this.ensureConnected();
 		const range = `${this.formatSheetName(sheetName)}!A1:${GoogleService.parseIndexToColumn(limitColumns)}${limitRows}`;
 		const res = await this.sheets.spreadsheets.values.get({
 			spreadsheetId,
@@ -136,17 +173,14 @@ export class GoogleService {
 		return col;
 	}
 
-	async findColumnByRowValue(
+	async findColumnByPropValue(
 		spreadsheetId: string,
 		sheetName: string,
 		rowNumber: number,
 		value: string | number,
 		useUnformattedValues: boolean = false
 	): Promise<string | null> {
-		if (!this.isInit) {
-			console.error('GoogleService is not initialized');
-			return null;
-		}
+		await this.ensureConnected();
 
 		const range = `${this.formatSheetName(sheetName)}!A${rowNumber}:ZZ${rowNumber}`;
 		const res = await this.sheets.spreadsheets.values.get({
@@ -175,10 +209,7 @@ export class GoogleService {
 		rowNumber: number,
 		values: (string | number)[]
 	): Promise<void> {
-		if (!this.isInit) {
-			console.error('GoogleService is not initialized');
-			return;
-		}
+		await this.ensureConnected();
 		await this.sheets.spreadsheets.values.update({
 			spreadsheetId,
 			range: `${this.formatSheetName(sheetName)}!${rowNumber}:${rowNumber}`,
@@ -190,10 +221,7 @@ export class GoogleService {
 	}
 
 	async getCellValue(spreadsheetId: string, sheetName: string, cell: Cell): Promise<string | null> {
-		if (!this.isInit) {
-			console.error('GoogleService is not initialized');
-			return null;
-		}
+		await this.ensureConnected();
 		const range = `${this.formatSheetName(sheetName)}!${cell.column}${cell.row}:${cell.column}${cell.row}`;
 		const res = await this.sheets.spreadsheets.values.get({
 			spreadsheetId,
@@ -205,10 +233,7 @@ export class GoogleService {
 	}
 
 	async editCell(spreadsheetId: string, sheetName: string, cell: Cell, value: string): Promise<void> {
-		if (!this.isInit) {
-			console.error('GoogleService is not initialized');
-			return;
-		}
+		await this.ensureConnected();
 		const range = `${this.formatSheetName(sheetName)}!${cell.column}${cell.row}:${cell.column}${cell.row}`;
 		await this.sheets.spreadsheets.values.update({
 			spreadsheetId,
@@ -224,10 +249,7 @@ export class GoogleService {
 	 * Récupère le nom de la feuille par son index (0 = première feuille)
 	 */
 	async getSheetNameByIndex(spreadsheetId: string, sheetIndex: number): Promise<string | null> {
-		if (!this.isInit) {
-			console.error('GoogleService is not initialized');
-			return null;
-		}
+		await this.ensureConnected();
 
 		try {
 			const response = await this.sheets.spreadsheets.get({
