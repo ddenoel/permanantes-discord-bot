@@ -22,6 +22,7 @@ import { MiscellaneousUtils } from '../../../app/domain/utils/miscellaneous.util
 import { monthEmojiByIndex } from '../../../app/domain/data/dates.data';
 import { verifyRole } from '../shared/verify-role';
 import { getPlanningEntriesAsSelect } from '../shared/get-planning-entries-as-select';
+import { FeatureFlags } from '../../../app/domain/services/feature-flags';
 
 const data = new SlashCommandBuilder();
 
@@ -62,10 +63,11 @@ export const command: Command = {
 		await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
 		try {
-			const roleOk = await verifyRole(interaction, process.env.ABSENCE_ALLOWED_ROLE_ID);
+			const app = new App(interaction.client);
+			const config = await app.configService.get(interaction.guildId);
+			const roleOk = await verifyRole(interaction, config.discord.absence.allowedRolesIds);
 			if (!roleOk) return;
 
-			const app = new App(interaction.client);
 			let entries: IPlanningEntryEntity[] = [];
 			try {
 				entries = await app.retrieveFuturePlanningEntries.execute();
@@ -153,6 +155,44 @@ const MESSAGE_PLACEHOLDERS: string[] = [
 	'Je dois calibrer mes chaussettes pour l’hiver.',
 ];
 
+async function showAbsenceConfirmation(
+	interaction: Interaction,
+	userId: string,
+	date: Date,
+	message?: string
+) {
+	const confirm = new ButtonBuilder().setCustomId(CONFIRM_ID).setLabel('Confirmer').setStyle(ButtonStyle.Success);
+	const cancel = new ButtonBuilder().setCustomId(CANCEL_ID).setLabel('Annuler').setStyle(ButtonStyle.Secondary);
+	const row = new ActionRowBuilder<ButtonBuilder>().addComponents(confirm, cancel);
+
+	let content = `Confirmer votre absence pour le **${DateUtils.formatDate(date)}**`;
+	if (FeatureFlags.isAbsenceMessagesEnabled() && message) {
+		content += `\nVotre message:`;
+		content += `\n> ${message} \n\n-# Vous êtes vraiment sûr ?`;
+	}
+
+	const root = lastSelectInteractionByUser.get(userId) as any;
+	if (root && root.editReply) {
+		await root.editReply({ content, components: [row] });
+		if (interaction.isModalSubmit()) {
+			try {
+				if (!interaction.deferred && !interaction.replied) {
+					await interaction.deferReply({ flags: MessageFlags.Ephemeral });
+				}
+				await interaction.deleteReply().catch(() => {});
+			} catch {}
+		} else if (interaction.isMessageComponent()) {
+			await interaction.deferUpdate().catch(() => {});
+		}
+	} else if (interaction.isRepliable()) {
+		if (interaction.deferred || interaction.replied) {
+			await interaction.followUp({ content, flags: MessageFlags.Ephemeral, components: [row] });
+		} else {
+			await interaction.reply({ content, flags: MessageFlags.Ephemeral, components: [row] });
+		}
+	}
+}
+
 async function handleDateSelection(interaction: Interaction) {
 	if (interaction.isStringSelectMenu() && interaction.customId === SELECT_ID) {
 		const userId = interaction.user.id;
@@ -170,6 +210,11 @@ async function handleDateSelection(interaction: Interaction) {
 
 		const date = new Date(iso);
 		pendingAbsenceByUser.set(userId, { date });
+
+		if (!FeatureFlags.isAbsenceMessagesEnabled()) {
+			await showAbsenceConfirmation(interaction, userId, date);
+			return true;
+		}
 
 		const modal = new ModalBuilder().setCustomId(MODAL_ID).setTitle("Votre message d'absence (optionnel)");
 		const input = new TextInputBuilder()
@@ -190,22 +235,29 @@ async function handleDateSelection(interaction: Interaction) {
 
 async function handleManualDateSelection(interaction: Interaction) {
 	if (interaction.isButton() && interaction.customId === MANUAL_DATE_BTN_ID) {
-		const modal = new ModalBuilder().setCustomId(MANUAL_DATE_MODAL_ID).setTitle('Saisir date et message');
+		const messagesEnabled = FeatureFlags.isAbsenceMessagesEnabled();
+		const modal = new ModalBuilder()
+			.setCustomId(MANUAL_DATE_MODAL_ID)
+			.setTitle(messagesEnabled ? 'Saisir date et message' : 'Saisir la date');
 		const dateInput = new TextInputBuilder()
 			.setCustomId(MANUAL_DATE_INPUT_ID)
 			.setLabel('Date (JJ/MM/AAAA)')
 			.setStyle(TextInputStyle.Short)
 			.setRequired(true)
 			.setPlaceholder(DateUtils.formatDate(new Date()));
-		const msgInput = new TextInputBuilder()
-			.setCustomId(MESSAGE_INPUT_ID)
-			.setLabel("Message d'absence (optionnel)")
-			.setStyle(TextInputStyle.Paragraph)
-			.setRequired(false)
-			.setPlaceholder(MiscellaneousUtils.getRandomAmongList(MESSAGE_PLACEHOLDERS));
 		const rowDate = new ActionRowBuilder<TextInputBuilder>().addComponents(dateInput);
-		const rowMsg = new ActionRowBuilder<TextInputBuilder>().addComponents(msgInput);
-		modal.addComponents(rowDate, rowMsg);
+		modal.addComponents(rowDate);
+
+		if (messagesEnabled) {
+			const msgInput = new TextInputBuilder()
+				.setCustomId(MESSAGE_INPUT_ID)
+				.setLabel("Message d'absence (optionnel)")
+				.setStyle(TextInputStyle.Paragraph)
+				.setRequired(false)
+				.setPlaceholder(MiscellaneousUtils.getRandomAmongList(MESSAGE_PLACEHOLDERS));
+			modal.addComponents(new ActionRowBuilder<TextInputBuilder>().addComponents(msgInput));
+		}
+
 		await interaction.showModal(modal);
 
 		return true;
@@ -222,69 +274,27 @@ async function handleMessageModalSubmit(interaction: Interaction) {
 			await interaction.reply({ content: USER_ERROR_MESSAGE, flags: MessageFlags.Ephemeral });
 			return;
 		}
-		const message = interaction.fields.getTextInputValue(MESSAGE_INPUT_ID) || '';
+		const message = FeatureFlags.isAbsenceMessagesEnabled()
+			? interaction.fields.getTextInputValue(MESSAGE_INPUT_ID) || ''
+			: '';
 		pendingAbsenceByUser.set(userId, { ...data, message });
-
-		const confirm = new ButtonBuilder().setCustomId(CONFIRM_ID).setLabel('Confirmer').setStyle(ButtonStyle.Success);
-		const cancel = new ButtonBuilder().setCustomId(CANCEL_ID).setLabel('Annuler').setStyle(ButtonStyle.Secondary);
-		const row = new ActionRowBuilder<ButtonBuilder>().addComponents(confirm, cancel);
-
-		let content = `Confirmer votre absence pour le **${DateUtils.formatDate(data.date)}**`;
-		if (message) {
-			content += `\nVotre message:`;
-			content += `\n> ${message} \n\n-# Vous êtes vraiment sûr ?`;
-		}
-		const root = lastSelectInteractionByUser.get(userId) as any;
-		if (root && root.editReply) {
-			await root.editReply({ content, components: [row] });
-			// Acknowledge the modal to avoid client error and close it without leaving extra messages
-			try {
-				if (!interaction.deferred && !interaction.replied) {
-					await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-				}
-				await interaction.deleteReply().catch(() => {});
-			} catch {}
-		} else {
-			await interaction.reply({ content, flags: MessageFlags.Ephemeral, components: [row] });
-		}
-
+		await showAbsenceConfirmation(interaction, userId, data.date, message);
 		return true;
 	}
 
 	if (interaction.isModalSubmit() && interaction.customId === MANUAL_DATE_MODAL_ID) {
 		const userId = interaction.user.id;
 		const inputDate = interaction.fields.getTextInputValue(MANUAL_DATE_INPUT_ID);
-		const inputMsg = interaction.fields.getTextInputValue(MESSAGE_INPUT_ID) || '';
+		const inputMsg = FeatureFlags.isAbsenceMessagesEnabled()
+			? interaction.fields.getTextInputValue(MESSAGE_INPUT_ID) || ''
+			: '';
 		const parsed = DateUtils.parseFrenchDate(inputDate);
 		if (!parsed) {
 			await interaction.reply({ content: 'Format invalide. Utilisez JJ/MM/AAAA.', flags: MessageFlags.Ephemeral });
 			return true;
 		}
 		pendingAbsenceByUser.set(userId, { date: parsed, message: inputMsg });
-
-		const confirm = new ButtonBuilder().setCustomId(CONFIRM_ID).setLabel('Confirmer').setStyle(ButtonStyle.Success);
-		const cancel = new ButtonBuilder().setCustomId(CANCEL_ID).setLabel('Annuler').setStyle(ButtonStyle.Secondary);
-		const row = new ActionRowBuilder<ButtonBuilder>().addComponents(confirm, cancel);
-		const root = lastSelectInteractionByUser.get(userId) as any;
-		if (root && root.editReply) {
-			await root.editReply({
-				content: `Date choisie: **${DateUtils.formatDate(parsed)}**${inputMsg ? `\n> ${inputMsg}` : ''}`,
-				components: [row],
-			});
-			// Acknowledge the modal and close it silently
-			try {
-				if (!interaction.deferred && !interaction.replied) {
-					await interaction.deferReply({ flags: MessageFlags.Ephemeral });
-				}
-				await interaction.deleteReply().catch(() => {});
-			} catch {}
-		} else {
-			await interaction.reply({
-				content: `Date choisie: **${DateUtils.formatDate(parsed)}**${inputMsg ? `\n> ${inputMsg}` : ''}`,
-				flags: MessageFlags.Ephemeral,
-				components: [row],
-			});
-		}
+		await showAbsenceConfirmation(interaction, userId, parsed, inputMsg);
 		return true;
 	}
 
@@ -324,7 +334,7 @@ async function handleConfirm(interaction: Interaction) {
 					},
 				},
 				absenceDate: data.date,
-				message: data.message || '',
+				message: FeatureFlags.isAbsenceMessagesEnabled() ? data.message || '' : '',
 			});
 		} catch (e) {
 			console.error('[Absence Command] Error creating absence:', e);

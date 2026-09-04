@@ -7,12 +7,10 @@ import {
 	IGoogleSheetPlanningEntryEntity,
 } from './model/planning.model';
 import { ActivityType, IPlanningEntryEntity, PlanningEntry } from '../../app/domain/entities/planning.entity';
+import { PermanantesConfigService } from '../../app/domain/services/permanantes-config.service';
 
 export class PlanningSheet {
-	private readonly fileId = process.env.GOOGLE_ABSENCES_FILE_ID;
-	private readonly defaultSheetName = process.env.GOOGLE_ABSENCE_SHEET_NAME || 'Planning';
 	private readonly sheetIndex = 0;
-	private _sheetName: string | null = null;
 
 	private rowMatcher: Record<keyof IGoogleSheetPlanningEntry, number | null> = {
 		column: null,
@@ -30,12 +28,23 @@ export class PlanningSheet {
 		Object.entries(this.rowMatcher).map(([key, value]) => [value, key])
 	) as Record<number, keyof IGoogleSheetPlanningEntry>;
 
-	constructor(private googleService: GoogleService) {
-		this.getSheetName();
+	constructor(
+		private googleService: GoogleService,
+		private configService: PermanantesConfigService
+	) {}
+
+	private get guildId() {
+		return process.env.GUILD_ID;
+	}
+
+	async getFileId(): Promise<string | null> {
+		const config = await this.configService.get(this.guildId);
+		return config.planning.googleSheetId || null;
 	}
 
 	async getFileName(): Promise<string> {
-		return this.googleService.getFileName(this.fileId);
+		const fileId = await this.getFileId();
+		return this.googleService.getFileName(fileId);
 	}
 
 	getLineIndexFor(prop: keyof IGoogleSheetPlanningEntry) {
@@ -84,36 +93,37 @@ export class PlanningSheet {
 	}
 
 	/**
-	 * Gets the real name of the sheet (by index)
+	 * Gets the sheet name from config, falling back to the sheet at index 0
 	 */
 	async getSheetName(): Promise<string> {
-		if (!this.fileId) {
-			console.error('[GoogleSheetAbsenceRepository] GOOGLE_ABSENCES_FILE_ID is not defined');
-			return this.defaultSheetName;
+		const config = await this.configService.get(this.guildId);
+		if (config.planning.sheetName) {
+			return config.planning.sheetName;
 		}
 
-		if (this._sheetName) {
-			return this._sheetName;
+		const fileId = await this.getFileId();
+		if (!fileId) {
+			console.error('[PlanningSheet] planning.googleSheetId is not defined in Permanantes config');
+			return 'Planning';
 		}
 
-		const sheetName = await this.googleService.getSheetNameByIndex(this.fileId, this.sheetIndex);
+		const sheetName = await this.googleService.getSheetNameByIndex(fileId, this.sheetIndex);
 		if (sheetName) {
-			this._sheetName = sheetName;
-
 			return sheetName;
 		}
 
-		return this.defaultSheetName;
+		return 'Planning';
 	}
 
 	async readFile(): Promise<{ col: string; entry: IPlanningEntryEntity }[]> {
-		if (!this.fileId) {
-			console.error('[GoogleSheetAbsenceRepository] GOOGLE_ABSENCES_FILE_ID is not defined');
+		const fileId = await this.getFileId();
+		if (!fileId) {
+			console.error('[PlanningSheet] planning.googleSheetId is not defined in Permanantes config');
 			return [];
 		}
 
 		const sheetName = await this.getSheetName();
-		const rows = await this.googleService.readSheet(this.fileId, sheetName, 80, 10);
+		const rows = await this.googleService.readSheet(fileId, sheetName, 80, 10);
 
 		const objs = [];
 		rows.forEach((cols, index) => {

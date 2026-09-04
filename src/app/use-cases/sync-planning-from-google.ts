@@ -60,11 +60,36 @@ export class SyncPlanningFromGoogle {
 		);
 	}
 
+	private async resolveSeasonStartYear(byKey: Map<string, IPlanningEntryEntity>): Promise<number> {
+		const sheetName = await this.planningSheet.getSheetName();
+		const fromName = DateUtils.parseSeasonYearsFromSheetName(sheetName);
+		if (fromName) {
+			return fromName.startYear;
+		}
+
+		for (const entry of byKey.values()) {
+			if (entry?.date instanceof Date) {
+				return DateUtils.getSeasonYearsForDate(entry.date).startYear;
+			}
+		}
+
+		return DateUtils.getSeasonYearsForDate(new Date()).startYear;
+	}
+
+	private shouldDeleteDuringSync(date: Date, seasonStartYear: number): boolean {
+		return DateUtils.isDateInSeason(date, seasonStartYear);
+	}
+
 	private async syncSimple(
 		guildId: string,
 		force: boolean
 	): Promise<{ createdOrUpdated: number; deleted: number; errors: number }> {
 		const { byKey, errorsCount } = await this.buildSheetMap(guildId);
+		const seasonStartYear = await this.resolveSeasonStartYear(byKey);
+		const seasonRange = DateUtils.getSeasonRange(seasonStartYear);
+		console.info(
+			`[SyncPlanning] Season ${seasonStartYear}-${seasonStartYear + 1} (${DateUtils.formatDate(seasonRange.start)} → ${DateUtils.formatDate(seasonRange.end)})`
+		);
 
 		const existing = force
 			? await this.planningRepo.findAllForGuild(guildId)
@@ -81,7 +106,11 @@ export class SyncPlanningFromGoogle {
 		let deleted = 0;
 		for (const remainingKey of existingKeys) {
 			const [y, m, d] = remainingKey.split('-').map((v) => parseInt(v, 10));
-			await this.planningRepo.deleteByDateAndGuild(new Date(y, m - 1, d), guildId);
+			const date = new Date(y, m - 1, d);
+			if (!this.shouldDeleteDuringSync(date, seasonStartYear)) {
+				continue;
+			}
+			await this.planningRepo.deleteByDateAndGuild(date, guildId);
 			deleted++;
 		}
 
@@ -114,8 +143,15 @@ export class SyncPlanningFromGoogle {
 			const fileName = await this.planningSheet.getFileName();
 			if (onProgress) await onProgress({ stage: 'reading_file', message: `📖 Lecture du fichier _"${fileName}"_...` });
 			const { byKey, total, errorsCount, errorDates } = await this.buildSheetMap(guildId);
-			if (onProgress)
-				await onProgress({ stage: 'entries_found', message: `📄 ${total} entrées trouvées dans le fichier`, total });
+			const seasonStartYear = await this.resolveSeasonStartYear(byKey);
+			const seasonRange = DateUtils.getSeasonRange(seasonStartYear);
+			if (onProgress) {
+				await onProgress({
+					stage: 'entries_found',
+					message: `📄 ${total} entrées trouvées · saison ${seasonStartYear}-${seasonStartYear + 1} (${DateUtils.formatDate(seasonRange.start)} → ${DateUtils.formatDate(seasonRange.end)})`,
+					total,
+				});
+			}
 
 			const existing = force
 				? await this.planningRepo.findAllForGuild(guildId)
@@ -155,9 +191,11 @@ export class SyncPlanningFromGoogle {
 				}
 			}
 
-			for (const [remainingKey, remainingEntry] of existingByKey.entries()) {
-				const [y, m, d] = remainingKey.split('-').map((v) => parseInt(v, 10));
-				await this.planningRepo.deleteByDateAndGuild(new Date(y, m - 1, d), guildId);
+			for (const [, remainingEntry] of existingByKey.entries()) {
+				if (!this.shouldDeleteDuringSync(remainingEntry.date, seasonStartYear)) {
+					continue;
+				}
+				await this.planningRepo.deleteByDateAndGuild(remainingEntry.date, guildId);
 				deletedDates.push(remainingEntry.date);
 			}
 

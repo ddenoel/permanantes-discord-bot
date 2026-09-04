@@ -1,10 +1,16 @@
 import { ChatInputCommandInteraction, MessageFlags } from 'discord.js';
 
-export async function verifyRole(interaction: ChatInputCommandInteraction, rolesCsv?: string, memberId?: string) {
-	const allowedRoles = (rolesCsv || '')
-		.split(',')
-		.map((s) => s.trim())
-		.filter(Boolean);
+export async function verifyRole(
+	interaction: ChatInputCommandInteraction,
+	roles?: string | string[],
+	memberId?: string
+) {
+	const allowedRoles = Array.isArray(roles)
+		? roles.map((s) => s.trim()).filter(Boolean)
+		: (roles || '')
+				.split(',')
+				.map((s) => s.trim())
+				.filter(Boolean);
 
 	if (!allowedRoles.length) return true;
 

@@ -76,4 +76,75 @@ export class DateUtils {
 
 		return months[month];
 	}
+
+	static readonly DEFAULT_ABSENCE_WARN_TIME = '07:00';
+	static readonly DEFAULT_BIRTHDAY_WARN_TIME = '08:00';
+
+	static parseHhMm(value?: string): { hour: number; minute: number } | null {
+		if (!value) return null;
+		const match = value.trim().match(/^(\d{1,2})h(\d{2})$|^(\d{1,2}):(\d{2})$/i);
+		if (!match) return null;
+		const hour = Number(match[1] ?? match[3]);
+		const minute = Number(match[2] ?? match[4]);
+		if (!Number.isInteger(hour) || !Number.isInteger(minute)) return null;
+		if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+		return { hour, minute };
+	}
+
+	static normalizeHhMm(value: string | undefined, fallback: string): string {
+		const parsed = this.parseHhMm(value) || this.parseHhMm(fallback);
+		if (!parsed) return fallback;
+		return `${String(parsed.hour).padStart(2, '0')}:${String(parsed.minute).padStart(2, '0')}`;
+	}
+
+	static toDailyCron(hhmm: string | undefined, fallback: string): string {
+		const normalized = this.normalizeHhMm(hhmm, fallback);
+		const parsed = this.parseHhMm(normalized)!;
+		return `${parsed.minute} ${parsed.hour} * * *`;
+	}
+
+	/**
+	 * Artistic season: 1 September (startYear) → 31 August (startYear + 1).
+	 */
+	static getSeasonYearsForDate(date: Date): { startYear: number; endYear: number } {
+		const month = date.getMonth() + 1;
+		const year = date.getFullYear();
+		if (month >= 9) {
+			return { startYear: year, endYear: year + 1 };
+		}
+		return { startYear: year - 1, endYear: year };
+	}
+
+	static getSeasonRange(startYear: number): { start: Date; end: Date } {
+		return {
+			start: startOfDay(new Date(startYear, 8, 1)),
+			end: startOfDay(new Date(startYear + 1, 7, 31)),
+		};
+	}
+
+	static isDateInSeason(date: Date, startYear: number): boolean {
+		const { start, end } = this.getSeasonRange(startYear);
+		const time = startOfDay(date).getTime();
+		return time >= start.getTime() && time <= end.getTime();
+	}
+
+	/**
+	 * Parses season years from sheet labels like "Planning 25-26" or "Planning 2026-2027".
+	 */
+	static parseSeasonYearsFromSheetName(sheetName: string): { startYear: number; endYear: number } | null {
+		if (!sheetName) return null;
+		const match = sheetName.match(/(\d{2}|\d{4})\s*[-–/]\s*(\d{2}|\d{4})/);
+		if (!match) return null;
+
+		let startYear = parseInt(match[1], 10);
+		let endYear = parseInt(match[2], 10);
+		if (startYear < 100) startYear += 2000;
+		if (endYear < 100) endYear += 2000;
+
+		if (endYear !== startYear + 1) {
+			endYear = startYear + 1;
+		}
+
+		return { startYear, endYear };
+	}
 }

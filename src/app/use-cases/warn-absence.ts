@@ -6,6 +6,7 @@ import { format } from 'date-fns';
 import { DateUtils } from '../domain/utils/dates.utils';
 import { DiscordService } from '../domain/services/discord.service';
 import { AbsenceRepository } from '../domain/repositories/absence.repostiory';
+import { FeatureFlags } from '../domain/services/feature-flags';
 
 config();
 
@@ -35,25 +36,25 @@ export class WarnAbsence {
 			throw new Error(`[Warn absence] Invalid channel type: Channel ${absenceChannel.id} is not a text channel`);
 		}
 
-		const notifyRoleId: string = process.env.NOTIFY_ROLE_ID || '';
+		const notifyRoleId = (await this.discordService.getConfig()).discord.absence.roleToNotifyId;
 		const roleTag = notifyRoleId ? `<@&${notifyRoleId}>` : '';
 
 		const formattedDates = DateUtils.formatDateList(todayAbsences.map((a) => a.absenceDate));
 
 		const absence = todayAbsences[0];
+		let content = `Oh non ! <@${absence.discord.member.id}> ne sera pas parmi nous ${formattedDates} 😭 ${roleTag}`;
+		if (FeatureFlags.isAbsenceMessagesEnabled() && absence.message?.trim()) {
+			content += `\n --- \nVoici son petit mot :\n> ${absence.message}`;
+		}
 
-		const message = await absenceChannel
-			.send(
-				`Oh non ! <@${absence.discord.member.id}> ne sera pas parmi nous ${formattedDates} 😭 ${roleTag}\n --- \nVoici son petit mot :\n> ${absence.message}`
-			)
-			.catch(async (error) => {
-				console.error('[Warn absence] Failed to send message:', {
-					error,
-					channelId: absenceChannel.id,
-					userId: absence.discord.member.id,
-				});
-				throw new Error('[Warn absence] Failed to send message');
+		const message = await absenceChannel.send(content).catch(async (error) => {
+			console.error('[Warn absence] Failed to send message:', {
+				error,
+				channelId: absenceChannel.id,
+				userId: absence.discord.member.id,
 			});
+			throw new Error('[Warn absence] Failed to send message');
+		});
 
 		if (!message) return true;
 

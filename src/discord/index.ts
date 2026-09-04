@@ -14,10 +14,11 @@ import { command as getMyAbsencesCommand } from './commands/commands/get-my-abse
 import { command as deleteAbsenceCommand } from './commands/commands/delete-absence';
 import { command as newBirthdayCommand } from './commands/commands/birthday/new-birthday';
 import { command as syncPlanningCommand } from './commands/commands/sync-planning';
+import { command as permanantesConfigCommand } from './commands/commands/admin/permanantes-config';
 import { Command } from './commands/command.model';
 import { deployCommands } from './commands/deploy-commands';
 import { KeepMaterialThreadsActive } from './automations/keep-material-threads-active';
-import { CreateQuestionThreadOnRessourcePost } from './automations';
+import { WarnOnRessourcePost } from './automations';
 
 export default async function startDiscord() {
 	// Load environment variables
@@ -36,9 +37,10 @@ export default async function startDiscord() {
 	commands.set(deleteAbsenceCommand.data.name, deleteAbsenceCommand);
 	commands.set(newBirthdayCommand.data.name, newBirthdayCommand);
 	commands.set(syncPlanningCommand.data.name, syncPlanningCommand);
+	commands.set(permanantesConfigCommand.data.name, permanantesConfigCommand);
 
 	// Set up automations
-	new CreateQuestionThreadOnRessourcePost(client).automate();
+	new WarnOnRessourcePost(client).automate();
 	new KeepMaterialThreadsActive(client).automate();
 
 	client.once(Events.ClientReady, (readyClient) => {

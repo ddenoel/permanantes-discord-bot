@@ -115,7 +115,8 @@ export const command: Command = {
 			}
 
 			// Verify roles now (target must have allowed role)
-			const roleOk = await verifyRole(interaction as any, process.env.BIRTHDAY_USERS_ROLES, targetId);
+			const birthdayConfig = await app.configService.get(guild.id);
+			const roleOk = await verifyRole(interaction as any, birthdayConfig.discord.birthday.allowedRolesIds, targetId);
 			if (!roleOk) return;
 
 			const target = guild.members.cache.get(targetId);
