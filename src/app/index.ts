@@ -28,6 +28,7 @@ import {
 	createPermanantesConfigService,
 	setFirebaseAvailable,
 } from '../infrastructure/create-permanantes-config.service';
+import { warnTasksScheduler } from '../infrastructure/warn-tasks-scheduler';
 
 let firebaseError = false;
 try {
@@ -134,8 +135,8 @@ export class App {
 
 	scheduleTasks() {
 		const retrieveAbsenceOfTheDayFallback = new RetrieveAbsencesOfTheDay(this.absenceRepoFallback, this.discordService);
-		// Schedule at 7:00(+2h) everyday
-		cron.schedule('0 7 * * *', async () => {
+
+		warnTasksScheduler.setAbsenceRunner(async () => {
 			console.info('Checking absences of the day');
 			let absences: Absence[] = [];
 			try {
@@ -151,17 +152,35 @@ export class App {
 			await this.remindAbsences.execute(absences);
 		});
 
-		// Schedule planning sync twice a week: Tuesday and Friday at 03:00(+2h)
-		cron.schedule('0 3 * * 2,5', async () => {
-			console.info('Syncing planning from Google Sheet');
+		warnTasksScheduler.setBirthdayRunner(async () => {
+			console.info('Checking birthdays of the day');
 			try {
-				const res = await this.syncPlanning.execute(undefined, false, true, ({ message }) => console.info(message));
-				console.info(`Planning sync done: ${res.createdOrUpdated} upserts, ${res.deleted} deletions`);
+				await this.birthday.warnBirthday.execute();
 			} catch (e) {
-				console.error('Error during planning sync (primary repo). Falling back to in-memory.', e);
+				console.error('Error while warning birthdays:', e);
 			}
 		});
 
-		this.birthday.scheduleTasks();
+		void this.rescheduleWarnTasks();
+
+		// Schedule planning sync twice a week: Tuesday and Friday at 03:00 Europe/Paris
+		cron.schedule(
+			'0 3 * * 2,5',
+			async () => {
+				console.info('Syncing planning from Google Sheet');
+				try {
+					const res = await this.syncPlanning.execute(undefined, false, true, ({ message }) => console.info(message));
+					console.info(`Planning sync done: ${res.createdOrUpdated} upserts, ${res.deleted} deletions`);
+				} catch (e) {
+					console.error('Error during planning sync (primary repo). Falling back to in-memory.', e);
+				}
+			},
+			{ timezone: 'Europe/Paris' }
+		);
+	}
+
+	async rescheduleWarnTasks(): Promise<void> {
+		const config = await this.configService.get(this.discordService.guildId);
+		warnTasksScheduler.apply(config.discord.absence.warnTime, config.discord.birthday.warnTime);
 	}
 }

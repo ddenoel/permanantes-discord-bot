@@ -7,11 +7,15 @@ export interface AbsenceConfig {
 	channelId: string;
 	roleToNotifyId: string;
 	allowedRolesIds: string[];
+	/** Daily warn time in Europe/Paris, format HH:mm */
+	warnTime: string;
 }
 
 export interface BirthdayConfig {
 	channelId: string;
 	allowedRolesIds: string[];
+	/** Daily warn time in Europe/Paris, format HH:mm */
+	warnTime: string;
 }
 
 export interface DiscordConfig {
@@ -31,6 +35,9 @@ export interface IPermanantesConfig {
 	planning: PlanningConfig;
 }
 
+const DEFAULT_ABSENCE_WARN_TIME = '07:00';
+const DEFAULT_BIRTHDAY_WARN_TIME = '08:00';
+
 export class PermanantesConfig implements IPermanantesConfig {
 	discord: DiscordConfig;
 	planning: PlanningConfig;
@@ -46,10 +53,12 @@ export class PermanantesConfig implements IPermanantesConfig {
 				channelId: data?.discord?.absence?.channelId || '',
 				roleToNotifyId: data?.discord?.absence?.roleToNotifyId || '',
 				allowedRolesIds: data?.discord?.absence?.allowedRolesIds || [],
+				warnTime: data?.discord?.absence?.warnTime || DEFAULT_ABSENCE_WARN_TIME,
 			},
 			birthday: {
 				channelId: data?.discord?.birthday?.channelId || '',
 				allowedRolesIds: data?.discord?.birthday?.allowedRolesIds || [],
+				warnTime: data?.discord?.birthday?.warnTime || DEFAULT_BIRTHDAY_WARN_TIME,
 			},
 		};
 		this.planning = {
@@ -83,10 +92,12 @@ export class PermanantesConfig implements IPermanantesConfig {
 					channelId: process.env.ABSENCE_CHANNEL_ID || '',
 					roleToNotifyId: process.env.NOTIFY_ROLE_ID || '',
 					allowedRolesIds: absenceAllowed,
+					warnTime: DEFAULT_ABSENCE_WARN_TIME,
 				},
 				birthday: {
 					channelId: process.env.BIRTHDAY_CHANNEL_ID || '',
 					allowedRolesIds: birthdayAllowed,
+					warnTime: DEFAULT_BIRTHDAY_WARN_TIME,
 				},
 			},
 			planning: {
@@ -97,10 +108,11 @@ export class PermanantesConfig implements IPermanantesConfig {
 	}
 
 	withGuildId(guildId: string): PermanantesConfig {
+		const base = this.toInterface();
 		return new PermanantesConfig({
-			...this.toInterface(),
+			...base,
 			discord: {
-				...this.toInterface().discord,
+				...base.discord,
 				guildId,
 			},
 		});

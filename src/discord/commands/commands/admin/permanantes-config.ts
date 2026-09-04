@@ -19,6 +19,8 @@ import { Command } from '../../command.model';
 import { App } from '../../../../app';
 import { PermanantesConfig } from '../../../../app/domain/entities/permanantes-config.entity';
 import { EMBED_COLOR } from '../../../../app/domain/data/style.data';
+import { DateUtils } from '../../../../app/domain/utils/dates.utils';
+import { warnTasksScheduler } from '../../../../infrastructure/warn-tasks-scheduler';
 
 const data = new SlashCommandBuilder()
 	.setName('permanantes_config')
@@ -31,6 +33,7 @@ const SECTION_MATERIAL = `${PREFIX}:section:material`;
 const SECTION_ABSENCE = `${PREFIX}:section:absence`;
 const SECTION_BIRTHDAY = `${PREFIX}:section:birthday`;
 const SECTION_PLANNING = `${PREFIX}:section:planning`;
+const SECTION_SCHEDULES = `${PREFIX}:section:schedules`;
 
 const SELECT_MATERIAL_CHANNEL = `${PREFIX}:select:material.channelId`;
 const SELECT_MATERIAL_INFORM = `${PREFIX}:select:material.informChannelId`;
@@ -43,6 +46,10 @@ const SELECT_BIRTHDAY_ALLOWED_ROLES = `${PREFIX}:select:birthday.allowedRolesIds
 const PLANNING_MODAL_ID = `${PREFIX}:modal:planning`;
 const PLANNING_SHEET_ID_INPUT = `${PREFIX}:input:googleSheetId`;
 const PLANNING_SHEET_NAME_INPUT = `${PREFIX}:input:sheetName`;
+
+const SCHEDULES_MODAL_ID = `${PREFIX}:modal:schedules`;
+const ABSENCE_WARN_TIME_INPUT = `${PREFIX}:input:absence.warnTime`;
+const BIRTHDAY_WARN_TIME_INPUT = `${PREFIX}:input:birthday.warnTime`;
 
 const USER_ERROR_MESSAGE =
 	"Désolé, je n'ai pas pu traiter votre demande. Veuillez réessayer ou contacter un administrateur si le problème persiste.";
@@ -87,6 +94,14 @@ const FIELD_META = {
 		title: "Nom de l'onglet",
 		caption: "Nom exact de l'onglet dans lequel sont stockées les données de planning",
 	},
+	absenceWarnTime: {
+		title: 'Heure des absences',
+		caption: 'Heure à laquelle le rappel des absences du jour est publié ',
+	},
+	birthdayWarnTime: {
+		title: 'Heure des anniversaires',
+		caption: 'Heure à laquelle les anniversaires du jour sont publiés',
+	},
 } as const satisfies Record<string, FieldMeta>;
 
 function isAdmin(interaction: Interaction): boolean {
@@ -122,7 +137,7 @@ function embedField(meta: FieldMeta, current: string) {
 }
 
 function summaryLine(meta: FieldMeta, current: string): string {
-	return meta.caption ? `${meta.title} : ${current} (${meta.caption})` : `${meta.title} : ${current}`;
+	return meta.caption ? `${meta.title} : ${current} \n-# _${meta.caption}_\n` : `${meta.title} : ${current}`;
 }
 
 function buildSummaryEmbed(config: PermanantesConfig): EmbedBuilder {
@@ -136,6 +151,7 @@ function buildSummaryEmbed(config: PermanantesConfig): EmbedBuilder {
 				value: [
 					summaryLine(FIELD_META.materialChannel, mentionChannel(config.discord.material.channelId)),
 					summaryLine(FIELD_META.materialInform, mentionChannel(config.discord.material.informChannelId)),
+					'---',
 				].join('\n'),
 			},
 			{
@@ -144,6 +160,7 @@ function buildSummaryEmbed(config: PermanantesConfig): EmbedBuilder {
 					summaryLine(FIELD_META.absenceChannel, mentionChannel(config.discord.absence.channelId)),
 					summaryLine(FIELD_META.absenceNotifyRole, mentionRole(config.discord.absence.roleToNotifyId)),
 					summaryLine(FIELD_META.absenceAllowedRoles, mentionRoles(config.discord.absence.allowedRolesIds)),
+					'---',
 				].join('\n'),
 			},
 			{
@@ -151,6 +168,7 @@ function buildSummaryEmbed(config: PermanantesConfig): EmbedBuilder {
 				value: [
 					summaryLine(FIELD_META.birthdayChannel, mentionChannel(config.discord.birthday.channelId)),
 					summaryLine(FIELD_META.birthdayAllowedRoles, mentionRoles(config.discord.birthday.allowedRolesIds)),
+					'---',
 				].join('\n'),
 			},
 			{
@@ -158,25 +176,37 @@ function buildSummaryEmbed(config: PermanantesConfig): EmbedBuilder {
 				value: [
 					summaryLine(FIELD_META.planningSheetId, `\`${config.planning.googleSheetId || '—'}\``),
 					summaryLine(FIELD_META.planningSheetName, `\`${config.planning.sheetName || '—'}\``),
+					'---',
+				].join('\n'),
+			},
+			{
+				name: '⏰│ Horaires des alertes',
+				value: [
+					summaryLine(FIELD_META.absenceWarnTime, `\`${config.discord.absence.warnTime}\``),
+					summaryLine(FIELD_META.birthdayWarnTime, `\`${config.discord.birthday.warnTime}\``),
+					'---',
 				].join('\n'),
 			}
 		);
 }
 
-function sectionButtons(active?: string): ActionRowBuilder<ButtonBuilder> {
+function sectionButtons(active?: string): ActionRowBuilder<ButtonBuilder>[] {
 	const mk = (id: string, label: string, style: ButtonStyle = ButtonStyle.Secondary) =>
 		new ButtonBuilder()
 			.setCustomId(id)
 			.setLabel(label)
 			.setStyle(id === active ? ButtonStyle.Primary : style);
 
-	return new ActionRowBuilder<ButtonBuilder>().addComponents(
-		mk(SECTION_HOME, '🏠 Accueil'),
-		mk(SECTION_MATERIAL, '🎼 Ressources'),
-		mk(SECTION_ABSENCE, '🤒 Absences'),
-		mk(SECTION_BIRTHDAY, '🎂 Anniversaires'),
-		mk(SECTION_PLANNING, '📊 Planning')
-	);
+	return [
+		new ActionRowBuilder<ButtonBuilder>().addComponents(
+			mk(SECTION_MATERIAL, '🎼 Ressources'),
+			mk(SECTION_ABSENCE, '🤒 Absences'),
+			mk(SECTION_BIRTHDAY, '🎂 Anniversaires'),
+			mk(SECTION_PLANNING, '📊 Planning'),
+			mk(SECTION_SCHEDULES, '⏰ Horaires')
+		),
+		new ActionRowBuilder<ButtonBuilder>().addComponents(mk(SECTION_HOME, '🏠 Accueil')),
+	];
 }
 
 function withDefaultChannel(select: ChannelSelectMenuBuilder, channelId?: string): ChannelSelectMenuBuilder {
@@ -195,7 +225,7 @@ function withDefaultRoles(select: RoleSelectMenuBuilder, roleIds?: string[]): Ro
 async function buildHomeView(config: PermanantesConfig) {
 	return {
 		embeds: [buildSummaryEmbed(config)],
-		components: [sectionButtons(SECTION_HOME)],
+		components: sectionButtons(SECTION_HOME),
 	};
 }
 
@@ -227,7 +257,7 @@ async function buildMaterialView(config: PermanantesConfig) {
 			]),
 		],
 		components: [
-			sectionButtons(SECTION_MATERIAL),
+			...sectionButtons(SECTION_MATERIAL),
 			new ActionRowBuilder<ChannelSelectMenuBuilder>().addComponents(materialChannel),
 			new ActionRowBuilder<ChannelSelectMenuBuilder>().addComponents(informChannel),
 		],
@@ -270,7 +300,7 @@ async function buildAbsenceView(config: PermanantesConfig) {
 			]),
 		],
 		components: [
-			sectionButtons(SECTION_ABSENCE),
+			...sectionButtons(SECTION_ABSENCE),
 			new ActionRowBuilder<ChannelSelectMenuBuilder>().addComponents(channel),
 			new ActionRowBuilder<RoleSelectMenuBuilder>().addComponents(notifyRole),
 			new ActionRowBuilder<RoleSelectMenuBuilder>().addComponents(allowedRoles),
@@ -305,7 +335,7 @@ async function buildBirthdayView(config: PermanantesConfig) {
 			]),
 		],
 		components: [
-			sectionButtons(SECTION_BIRTHDAY),
+			...sectionButtons(SECTION_BIRTHDAY),
 			new ActionRowBuilder<ChannelSelectMenuBuilder>().addComponents(channel),
 			new ActionRowBuilder<RoleSelectMenuBuilder>().addComponents(allowedRoles),
 		],
@@ -341,6 +371,30 @@ function buildPlanningModal(config: PermanantesConfig): ModalBuilder {
 	modal.addComponents(
 		new ActionRowBuilder<TextInputBuilder>().addComponents(sheetIdInput),
 		new ActionRowBuilder<TextInputBuilder>().addComponents(sheetNameInput)
+	);
+	return modal;
+}
+
+function buildSchedulesModal(config: PermanantesConfig): ModalBuilder {
+	const modal = new ModalBuilder().setCustomId(SCHEDULES_MODAL_ID).setTitle('⏰ Horaires des alertes');
+	const absenceInput = new TextInputBuilder()
+		.setCustomId(ABSENCE_WARN_TIME_INPUT)
+		.setLabel(FIELD_META.absenceWarnTime.title)
+		.setStyle(TextInputStyle.Short)
+		.setRequired(true)
+		.setPlaceholder('07:00')
+		.setValue(DateUtils.normalizeHhMm(config.discord.absence.warnTime, DateUtils.DEFAULT_ABSENCE_WARN_TIME));
+	const birthdayInput = new TextInputBuilder()
+		.setCustomId(BIRTHDAY_WARN_TIME_INPUT)
+		.setLabel(FIELD_META.birthdayWarnTime.title)
+		.setStyle(TextInputStyle.Short)
+		.setRequired(true)
+		.setPlaceholder('08:00')
+		.setValue(DateUtils.normalizeHhMm(config.discord.birthday.warnTime, DateUtils.DEFAULT_BIRTHDAY_WARN_TIME));
+
+	modal.addComponents(
+		new ActionRowBuilder<TextInputBuilder>().addComponents(absenceInput),
+		new ActionRowBuilder<TextInputBuilder>().addComponents(birthdayInput)
 	);
 	return modal;
 }
@@ -410,6 +464,11 @@ export const command: Command = {
 				if (interaction.customId === SECTION_PLANNING) {
 					const config = await configService.get(guildId);
 					await interaction.showModal(buildPlanningModal(config));
+					return;
+				}
+				if (interaction.customId === SECTION_SCHEDULES) {
+					const config = await configService.get(guildId);
+					await interaction.showModal(buildSchedulesModal(config));
 					return;
 				}
 
@@ -519,6 +578,33 @@ export const command: Command = {
 				await interaction.reply({
 					...(await buildHomeView(config)),
 					content: '✅ Planning Google Sheets mis à jour !',
+					flags: MessageFlags.Ephemeral,
+				});
+				return;
+			}
+
+			if (interaction.isModalSubmit() && interaction.customId === SCHEDULES_MODAL_ID) {
+				const absenceWarnTimeRaw = interaction.fields.getTextInputValue(ABSENCE_WARN_TIME_INPUT).trim();
+				const birthdayWarnTimeRaw = interaction.fields.getTextInputValue(BIRTHDAY_WARN_TIME_INPUT).trim();
+
+				if (!DateUtils.parseHhMm(absenceWarnTimeRaw) || !DateUtils.parseHhMm(birthdayWarnTimeRaw)) {
+					await interaction.reply({
+						content: 'Format invalide. Utilise `HH:mm` (ex: `07:00` ou `8:30`). Les heures sont en Europe/Paris.',
+						flags: MessageFlags.Ephemeral,
+					});
+					return;
+				}
+
+				const config = await configService.patch(guildId, {
+					discord: {
+						absence: { warnTime: absenceWarnTimeRaw },
+						birthday: { warnTime: birthdayWarnTimeRaw },
+					},
+				});
+				warnTasksScheduler.apply(config.discord.absence.warnTime, config.discord.birthday.warnTime);
+				await interaction.reply({
+					...(await buildHomeView(config)),
+					content: `✅ Horaires mis à jour ! Absences \`${config.discord.absence.warnTime}\` · Anniversaires \`${config.discord.birthday.warnTime}\` (Europe/Paris)`,
 					flags: MessageFlags.Ephemeral,
 				});
 			}

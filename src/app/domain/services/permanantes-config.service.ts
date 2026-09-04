@@ -1,5 +1,6 @@
 import { IPermanantesConfig, PermanantesConfig } from '../entities/permanantes-config.entity';
 import { PermanantesConfigRepository } from '../repositories/permanantes-config.repository';
+import { DateUtils } from '../utils/dates.utils';
 
 export class PermanantesConfigService {
 	private cache = new Map<string, { config: PermanantesConfig; at: number }>();
@@ -65,10 +66,18 @@ export class PermanantesConfigService {
 					channelId: patch.discord?.absence?.channelId ?? current.discord.absence.channelId,
 					roleToNotifyId: patch.discord?.absence?.roleToNotifyId ?? current.discord.absence.roleToNotifyId,
 					allowedRolesIds: patch.discord?.absence?.allowedRolesIds ?? current.discord.absence.allowedRolesIds,
+					warnTime: DateUtils.normalizeHhMm(
+						patch.discord?.absence?.warnTime ?? current.discord.absence.warnTime,
+						DateUtils.DEFAULT_ABSENCE_WARN_TIME
+					),
 				},
 				birthday: {
 					channelId: patch.discord?.birthday?.channelId ?? current.discord.birthday.channelId,
 					allowedRolesIds: patch.discord?.birthday?.allowedRolesIds ?? current.discord.birthday.allowedRolesIds,
+					warnTime: DateUtils.normalizeHhMm(
+						patch.discord?.birthday?.warnTime ?? current.discord.birthday.warnTime,
+						DateUtils.DEFAULT_BIRTHDAY_WARN_TIME
+					),
 				},
 			},
 			planning: {
@@ -80,12 +89,12 @@ export class PermanantesConfigService {
 	}
 }
 
-type DeepPartialConfig = {
+export type DeepPartialConfig = {
 	discord?: {
 		guildId?: string;
 		material?: Partial<{ channelId: string; informChannelId: string }>;
-		absence?: Partial<{ channelId: string; roleToNotifyId: string; allowedRolesIds: string[] }>;
-		birthday?: Partial<{ channelId: string; allowedRolesIds: string[] }>;
+		absence?: Partial<{ channelId: string; roleToNotifyId: string; allowedRolesIds: string[]; warnTime: string }>;
+		birthday?: Partial<{ channelId: string; allowedRolesIds: string[]; warnTime: string }>;
 	};
 	planning?: Partial<{ googleSheetId: string; sheetName: string }>;
 };

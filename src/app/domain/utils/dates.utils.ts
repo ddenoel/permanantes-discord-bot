@@ -76,4 +76,30 @@ export class DateUtils {
 
 		return months[month];
 	}
+
+	static readonly DEFAULT_ABSENCE_WARN_TIME = '07:00';
+	static readonly DEFAULT_BIRTHDAY_WARN_TIME = '08:00';
+
+	static parseHhMm(value?: string): { hour: number; minute: number } | null {
+		if (!value) return null;
+		const match = value.trim().match(/^(\d{1,2})h(\d{2})$|^(\d{1,2}):(\d{2})$/i);
+		if (!match) return null;
+		const hour = Number(match[1] ?? match[3]);
+		const minute = Number(match[2] ?? match[4]);
+		if (!Number.isInteger(hour) || !Number.isInteger(minute)) return null;
+		if (hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+		return { hour, minute };
+	}
+
+	static normalizeHhMm(value: string | undefined, fallback: string): string {
+		const parsed = this.parseHhMm(value) || this.parseHhMm(fallback);
+		if (!parsed) return fallback;
+		return `${String(parsed.hour).padStart(2, '0')}:${String(parsed.minute).padStart(2, '0')}`;
+	}
+
+	static toDailyCron(hhmm: string | undefined, fallback: string): string {
+		const normalized = this.normalizeHhMm(hhmm, fallback);
+		const parsed = this.parseHhMm(normalized)!;
+		return `${parsed.minute} ${parsed.hour} * * *`;
+	}
 }
