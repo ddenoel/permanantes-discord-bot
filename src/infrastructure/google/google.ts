@@ -66,11 +66,20 @@ export class GoogleService {
 
 	async getFileName(spreadsheetId: string): Promise<string> {
 		await this.ensureConnected();
-		const res = await this.sheets.spreadsheets.get({
-			spreadsheetId,
-		});
-
-		return res.data.properties?.title || '';
+		try {
+			const res = await this.sheets.spreadsheets.get({
+				spreadsheetId,
+			});
+			return res.data.properties?.title || '';
+		} catch (error: any) {
+			const details = error?.response?.data || error?.errors || error?.message;
+			console.error('[GoogleService.getFileName] Sheets API error:', {
+				spreadsheetId,
+				status: error?.status || error?.code,
+				details,
+			});
+			throw error;
+		}
 	}
 
 	async connect() {
@@ -79,16 +88,23 @@ export class GoogleService {
 		}
 
 		const credentials = this.parseServiceAccountCredentials();
-		const auth = new google.auth.GoogleAuth({
-			credentials,
-			scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+
+		// Use JWT client directly (not GoogleAuth wrapper) to avoid dual-package auth bugs
+		const jwtClient = new google.auth.JWT({
+			email: credentials.client_email,
+			key: credentials.private_key,
+			scopes: [
+				'https://www.googleapis.com/auth/spreadsheets',
+				'https://www.googleapis.com/auth/drive.readonly',
+			],
 		});
 
-		// Force token acquisition early to fail fast with a clearer error
-		await auth.getClient();
+		const token = await jwtClient.authorize();
+		if (!token?.access_token) {
+			throw new Error('[GoogleService] Failed to obtain Google access token');
+		}
 
-		// Cast avoids TS conflict when multiple google-auth-library copies are nested by googleapis
-		this.sheets = google.sheets({ version: 'v4', auth: auth as any });
+		this.sheets = google.sheets({ version: 'v4', auth: jwtClient });
 		this.isInit = true;
 		console.log(`🚀 Connected to Google as ${credentials.client_email}`);
 	}
