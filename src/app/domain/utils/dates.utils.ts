@@ -102,4 +102,49 @@ export class DateUtils {
 		const parsed = this.parseHhMm(normalized)!;
 		return `${parsed.minute} ${parsed.hour} * * *`;
 	}
+
+	/**
+	 * Artistic season: 1 September (startYear) → 31 August (startYear + 1).
+	 */
+	static getSeasonYearsForDate(date: Date): { startYear: number; endYear: number } {
+		const month = date.getMonth() + 1;
+		const year = date.getFullYear();
+		if (month >= 9) {
+			return { startYear: year, endYear: year + 1 };
+		}
+		return { startYear: year - 1, endYear: year };
+	}
+
+	static getSeasonRange(startYear: number): { start: Date; end: Date } {
+		return {
+			start: startOfDay(new Date(startYear, 8, 1)),
+			end: startOfDay(new Date(startYear + 1, 7, 31)),
+		};
+	}
+
+	static isDateInSeason(date: Date, startYear: number): boolean {
+		const { start, end } = this.getSeasonRange(startYear);
+		const time = startOfDay(date).getTime();
+		return time >= start.getTime() && time <= end.getTime();
+	}
+
+	/**
+	 * Parses season years from sheet labels like "Planning 25-26" or "Planning 2026-2027".
+	 */
+	static parseSeasonYearsFromSheetName(sheetName: string): { startYear: number; endYear: number } | null {
+		if (!sheetName) return null;
+		const match = sheetName.match(/(\d{2}|\d{4})\s*[-–/]\s*(\d{2}|\d{4})/);
+		if (!match) return null;
+
+		let startYear = parseInt(match[1], 10);
+		let endYear = parseInt(match[2], 10);
+		if (startYear < 100) startYear += 2000;
+		if (endYear < 100) endYear += 2000;
+
+		if (endYear !== startYear + 1) {
+			endYear = startYear + 1;
+		}
+
+		return { startYear, endYear };
+	}
 }
