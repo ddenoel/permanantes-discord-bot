@@ -1,4 +1,4 @@
-import { google, Auth, sheets_v4 } from 'googleapis';
+import { google, sheets_v4 } from 'googleapis';
 import { config } from 'dotenv';
 
 config();
@@ -16,8 +16,7 @@ export type Cell = {
 };
 
 export class GoogleService {
-	private auth: Auth.GoogleAuth;
-	private sheets: ReturnType<typeof google.sheets>;
+	private sheets: sheets_v4.Sheets;
 	static UNFORMATTED_DATE_FORMAT = 'yyyy-MM-dd';
 
 	private isInit = false;
@@ -45,12 +44,13 @@ export class GoogleService {
 			throw new Error('GOOGLE_SERVICE_ACCOUNT is not defined');
 		}
 		const credentials = JSON.parse(process.env.GOOGLE_SERVICE_ACCOUNT);
-		this.auth = new google.auth.GoogleAuth({
+		const auth = new google.auth.GoogleAuth({
 			credentials,
 			scopes: ['https://www.googleapis.com/auth/spreadsheets'],
 		});
 
-		this.sheets = google.sheets({ version: 'v4', auth: this.auth });
+		// Cast avoids TS conflict when multiple google-auth-library copies are nested by googleapis
+		this.sheets = google.sheets({ version: 'v4', auth: auth as any });
 		this.isInit = true;
 		console.log('🚀 Connected to Google');
 	}
