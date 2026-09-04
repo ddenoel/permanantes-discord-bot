@@ -6,6 +6,7 @@ import { DateUtils } from '../domain/utils/dates.utils';
 import { fr } from 'date-fns/locale';
 import { format } from 'date-fns';
 import { DiscordService } from '../domain/services/discord.service';
+import { FeatureFlags } from '../domain/services/feature-flags';
 
 config();
 
@@ -39,22 +40,30 @@ export class RemindAbsences {
 			formattedDate = `aujourd'hui`;
 		}
 
+		const showMessages = FeatureFlags.isAbsenceMessagesEnabled();
 		let message = `**Rappel** ${roleTag} \n`;
 		if (absences.length === 1) {
 			const absence = absences[0];
 			message += `<@${absence.discord.member.id}> n'est pas parmis nous ${formattedDate} ! 😢 \n`;
-			message += `> ${absence.message.split('\n').join('\n> ')}`;
+			if (showMessages && absence.message?.trim()) {
+				message += `> ${absence.message.split('\n').join('\n> ')}`;
+			}
 		} else {
 			message += `**${absences.length} personnes** ne seront pas parmis nous ${formattedDate} ! 😢 \n`;
 			const formatted = absences.map((absence) => `<@${absence.discord.member.id}>`);
 			const last = formatted.pop();
 			message += formatted.join(', ') + ` et ${last}`;
 			message += ' vous allez nous manquer !';
-			message += '\n --- \n';
-			absences.forEach((absence) => {
-				message += `<@${absence.discord.member.id}> \n`;
-				message += `> ${absence.message.split('\n').join('\n> ')} \n`;
-			});
+			if (showMessages) {
+				const withMessage = absences.filter((absence) => absence.message?.trim());
+				if (withMessage.length) {
+					message += '\n --- \n';
+					withMessage.forEach((absence) => {
+						message += `<@${absence.discord.member.id}> \n`;
+						message += `> ${absence.message!.split('\n').join('\n> ')} \n`;
+					});
+				}
+			}
 		}
 
 		await channel.send(message);

@@ -88,7 +88,7 @@ const FIELD_META = {
 	planningSheetId: {
 		title: 'Sheet ID',
 		caption:
-			"Identifiant contenu dans l'URL du fichier Google Sheets : https://docs.google.com/spreadsheets/d/IDENTIFIANT/edit",
+			"Identifiant contenu dans l'URL du fichier Google Sheets : https://docs.google.com/spreadsheets/d/IDENTIFIANT/edit. Pensez à partager à permabot@permanantes.iam.gserviceaccount.com l'accès à ce fichier en Editeur.",
 	},
 	planningSheetName: {
 		title: "Nom de l'onglet",
