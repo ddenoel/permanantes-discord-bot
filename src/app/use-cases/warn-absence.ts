@@ -35,7 +35,7 @@ export class WarnAbsence {
 			throw new Error(`[Warn absence] Invalid channel type: Channel ${absenceChannel.id} is not a text channel`);
 		}
 
-		const notifyRoleId: string = process.env.NOTIFY_ROLE_ID || '';
+		const notifyRoleId = (await this.discordService.getConfig()).discord.absence.roleToNotifyId;
 		const roleTag = notifyRoleId ? `<@&${notifyRoleId}>` : '';
 
 		const formattedDates = DateUtils.formatDateList(todayAbsences.map((a) => a.absenceDate));

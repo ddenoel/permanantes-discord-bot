@@ -28,11 +28,11 @@ export class WarnBirthday {
 
 		if (!birthdays.length) return;
 
-		const allowedCsv = process.env.BIRTHDAY_USERS_ROLES || '';
+		const allowedRoles = (await this.discordService.getConfig()).discord.birthday.allowedRolesIds;
 		const eligible: Birthday[] = [];
 		for (const b of birthdays) {
 			try {
-				if (await this.discordService.memberHasAnyRole(b.member.id, allowedCsv)) eligible.push(b);
+				if (await this.discordService.memberHasAnyRole(b.member.id, allowedRoles)) eligible.push(b);
 			} catch (e) {
 				console.warn('[WarnBirthday] Could not verify roles for member', b.member.id, e);
 			}

@@ -6,6 +6,7 @@ import { command as getMyAbsencesCommand } from './commands/get-my-absences';
 import { command as deleteAbsenceCommand } from './commands/delete-absence';
 import { command as newBirthdayCommand } from './commands/birthday/new-birthday';
 import { command as syncPlanningCommand } from './commands/sync-planning';
+import { command as permanantesConfigCommand } from './commands/admin/permanantes-config';
 
 config();
 
@@ -16,6 +17,7 @@ const commands = [
 	deleteAbsenceCommand.data.toJSON(),
 	newBirthdayCommand.data.toJSON(),
 	syncPlanningCommand.data.toJSON(),
+	permanantesConfigCommand.data.toJSON(),
 ];
 
 const rest = new REST().setToken(process.env.DISCORD_TOKEN!);

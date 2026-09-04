@@ -2,14 +2,9 @@ import { format, isAfter } from 'date-fns';
 import { Absence } from '../../app/domain/entities/absence.entity';
 import { AbsenceRepository } from '../../app/domain/repositories/absence.repostiory';
 import { Cell, GoogleService } from './google';
-import { config } from 'dotenv';
 import { PlanningSheet } from './planning-sheet';
 
-config();
-
 export class GoogleSheetAbsenceRepository implements AbsenceRepository {
-	private readonly fileId = process.env.GOOGLE_ABSENCES_FILE_ID;
-
 	constructor(
 		private googleService: GoogleService,
 		private planningSheet: PlanningSheet
@@ -72,8 +67,13 @@ export class GoogleSheetAbsenceRepository implements AbsenceRepository {
 		const cell: Cell = { row: this.planningSheet.getLineIndexFor('absents') + 1, column: entry.col };
 
 		const newValue = Array.from(absents).join(',');
+		const fileId = await this.planningSheet.getFileId();
+		if (!fileId) {
+			console.error('[GoogleSheetAbsenceRepository] planning.googleSheetId is not defined');
+			return;
+		}
 
-		await this.googleService.editCell(this.fileId, await this.planningSheet.getSheetName(), cell, newValue);
+		await this.googleService.editCell(fileId, await this.planningSheet.getSheetName(), cell, newValue);
 
 		return;
 	}
@@ -95,6 +95,11 @@ export class GoogleSheetAbsenceRepository implements AbsenceRepository {
 		absents.delete(userDisplayName);
 		const cell: Cell = { row: this.planningSheet.getLineIndexFor('absents') + 1, column: entry.col };
 		const newValue = Array.from(absents).join(',');
-		await this.googleService.editCell(this.fileId, await this.planningSheet.getSheetName(), cell, newValue);
+		const fileId = await this.planningSheet.getFileId();
+		if (!fileId) {
+			console.error('[GoogleSheetAbsenceRepository] planning.googleSheetId is not defined');
+			return;
+		}
+		await this.googleService.editCell(fileId, await this.planningSheet.getSheetName(), cell, newValue);
 	}
 }

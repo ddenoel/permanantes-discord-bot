@@ -1,12 +1,13 @@
 import { Channel, Client, EmbedBuilder, Events, TextChannel, ThreadChannel } from 'discord.js';
 import { EMBED_COLOR } from '../../app/domain/data/style.data';
 import { DiscordService } from '../../app/domain/services/discord.service';
+import { createPermanantesConfigService } from '../../infrastructure/create-permanantes-config.service';
 
 export class WarnOnRessourcePost {
 	private discordService: DiscordService;
 
 	constructor(private readonly client: Client) {
-		this.discordService = new DiscordService(this.client);
+		this.discordService = new DiscordService(this.client, createPermanantesConfigService());
 	}
 
 	async automate(): Promise<void> {

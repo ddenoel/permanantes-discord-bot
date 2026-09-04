@@ -62,10 +62,11 @@ export const command: Command = {
 		await interaction.deferReply({ flags: MessageFlags.Ephemeral });
 
 		try {
-			const roleOk = await verifyRole(interaction, process.env.ABSENCE_ALLOWED_ROLE_ID);
+			const app = new App(interaction.client);
+			const config = await app.configService.get(interaction.guildId);
+			const roleOk = await verifyRole(interaction, config.discord.absence.allowedRolesIds);
 			if (!roleOk) return;
 
-			const app = new App(interaction.client);
 			let entries: IPlanningEntryEntity[] = [];
 			try {
 				entries = await app.retrieveFuturePlanningEntries.execute();

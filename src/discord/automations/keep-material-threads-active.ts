@@ -1,12 +1,13 @@
 import { Channel, ChannelType, Client, ForumChannel, TextChannel, ThreadChannel } from 'discord.js';
 import cron from 'node-cron';
 import { DiscordService } from '../../app/domain/services/discord.service';
+import { createPermanantesConfigService } from '../../infrastructure/create-permanantes-config.service';
 
 export class KeepMaterialThreadsActive {
 	private discordService: DiscordService;
 
 	constructor(private readonly client: Client) {
-		this.discordService = new DiscordService(this.client);
+		this.discordService = new DiscordService(this.client, createPermanantesConfigService());
 	}
 
 	private async computeLastActivityTs(thread: ThreadChannel): Promise<number> {

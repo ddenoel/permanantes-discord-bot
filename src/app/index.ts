@@ -14,6 +14,7 @@ import { DeleteAbsence } from './use-cases/delete-absence';
 import { RetrieveAbsenceById } from './use-cases/retrieve-absence-by-id';
 import { RemindAbsences } from './use-cases/remind-absences';
 import { DiscordService } from './domain/services/discord.service';
+import { PermanantesConfigService } from './domain/services/permanantes-config.service';
 import { GoogleService } from '../infrastructure/google/google';
 import { GoogleSheetAbsenceRepository } from '../infrastructure/google/sheet-absence.repository';
 import { PlanningSheet } from '../infrastructure/google/planning-sheet';
@@ -23,14 +24,22 @@ import { InMemoryPlanningRepository } from '../infrastructure/in-memory/in-memor
 import { SyncPlanningFromGoogle } from './use-cases/sync-planning-from-google';
 import { RetrieveFuturePlanningEntries } from './use-cases/retrieve-future-planning-entries';
 import { BirthdayApp } from './birthday.app';
+import {
+	createPermanantesConfigService,
+	setFirebaseAvailable,
+} from '../infrastructure/create-permanantes-config.service';
 
 let firebaseError = false;
 try {
 	initializeFirebase();
+	setFirebaseAvailable(true);
 } catch (e) {
 	console.error('Failed to initialize Firebase:', e);
 	firebaseError = true;
+	setFirebaseAvailable(false);
 }
+
+export { createPermanantesConfigService };
 
 export class App {
 	private absenceRepo: AbsenceRepository = firebaseError
@@ -46,6 +55,7 @@ export class App {
 	warnAbsence: WarnAbsence;
 	private remindAbsences: RemindAbsences;
 	private discordService: DiscordService;
+	readonly configService: PermanantesConfigService;
 	readonly retrieveFuturePlanningEntries: RetrieveFuturePlanningEntries;
 	readonly retrieveAbsencesOfTheDay: RetrieveAbsencesOfTheDay;
 	readonly retrieveAbsencesOfUser: RetrieveAbsencesOfUser;
@@ -53,16 +63,15 @@ export class App {
 	private deleteAbsenceInGoogle: DeleteAbsence;
 	readonly retrieveAbsenceById: RetrieveAbsenceById;
 	private googleService: GoogleService = new GoogleService();
-	private planningSheet: PlanningSheet = new PlanningSheet(this.googleService);
-	syncPlanning: SyncPlanningFromGoogle = new SyncPlanningFromGoogle(
-		this.planningRepo,
-		this.planningSheet,
-		this.absenceRepo
-	);
+	private planningSheet: PlanningSheet;
+	syncPlanning: SyncPlanningFromGoogle;
 	readonly birthday: BirthdayApp;
 
 	constructor(private discord: Client) {
-		this.discordService = new DiscordService(this.discord);
+		this.configService = createPermanantesConfigService();
+		this.discordService = new DiscordService(this.discord, this.configService);
+		this.planningSheet = new PlanningSheet(this.googleService, this.configService);
+		this.syncPlanning = new SyncPlanningFromGoogle(this.planningRepo, this.planningSheet, this.absenceRepo);
 		this.birthday = new BirthdayApp(firebaseError, this.discordService);
 		this.warnAbsence = new WarnAbsence(this.discordService, this.absenceRepo);
 		this.remindAbsences = new RemindAbsences(this.discordService);
@@ -71,12 +80,12 @@ export class App {
 		this.retrieveAbsencesOfTheDay = new RetrieveAbsencesOfTheDay(this.absenceRepo, this.discordService);
 		this.retrieveAbsencesOfUser = new RetrieveAbsencesOfUser(this.absenceRepo, this.discordService);
 		this.deleteAbsenceInGoogle = new DeleteAbsence(
-			new GoogleSheetAbsenceRepository(this.googleService, new PlanningSheet(this.googleService)),
+			new GoogleSheetAbsenceRepository(this.googleService, this.planningSheet),
 			this.discordService
 		);
 		this.retrieveAbsenceById = new RetrieveAbsenceById(this.absenceRepo, this.discordService);
 		this.createAbsenceInGoogle = new CreateAbsence(
-			new GoogleSheetAbsenceRepository(this.googleService, new PlanningSheet(this.googleService)),
+			new GoogleSheetAbsenceRepository(this.googleService, this.planningSheet),
 			this.discordService,
 			this.planningRepo
 		);

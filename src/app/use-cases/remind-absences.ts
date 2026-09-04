@@ -25,7 +25,7 @@ export class RemindAbsences {
 
 		const channel = await this.discordService.getAbsenceChannel();
 
-		const notifyRoleId: string = process.env.NOTIFY_ROLE_ID || '';
+		const notifyRoleId = (await this.discordService.getConfig()).discord.absence.roleToNotifyId;
 		const roleTag = notifyRoleId ? `<@&${notifyRoleId}>` : '';
 
 		if (!(channel instanceof TextChannel)) {
